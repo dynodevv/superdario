@@ -1,0 +1,23 @@
+# build output
+/dist/
+*.exe
+*.app/
+
+# dev tool captures
+/art/
+/shots/
+*.png
+
+# ...but the generated icon bundles are committed, so a plain `go build`
+# produces an exe with the right icon without running cmd/genicon first.
+!assets/*.png
+
+# go
+*.test
+*.out
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
