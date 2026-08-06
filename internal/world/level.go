@@ -25,6 +25,7 @@ type Level struct {
 	W, H int // in tiles
 
 	tiles  []Tile
+	orig   []Tile // pristine copy, used to refill ? blocks on respawn
 	bump   []int8 // >0 while a block is animating after a hit
 	hidden []bool // revealed hidden blocks
 	Spawns []Spawn
@@ -104,7 +105,21 @@ func BuildLevel(def LevelDef) (*Level, error) {
 		// no '@' in the chunk list: drop Dario on the first solid ground
 		l.StartX, l.StartY = float64(2*TS), float64((l.H-4)*TS)
 	}
+	l.orig = make([]Tile, len(l.tiles))
+	copy(l.orig, l.tiles)
 	return l, nil
+}
+
+// RefillQuestionBlocks puts spent ? blocks back. Called when Dario respawns at
+// a checkpoint: he comes back Small, and if he had already emptied the
+// power-up blocks on the way through there would be no way to re-arm before
+// the boss. Dying still costs a life, so this cannot be farmed profitably.
+func (l *Level) RefillQuestionBlocks() {
+	for i, t := range l.tiles {
+		if t == TQUsed && l.orig[i].Question() {
+			l.tiles[i] = l.orig[i]
+		}
+	}
 }
 
 // AttachArt binds the level to its generated tileset and backdrop. It is

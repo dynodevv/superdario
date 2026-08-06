@@ -85,6 +85,29 @@ func (b *Boss) Vulnerable() bool {
 // Stompable is true only in the exposed window, so the fight has rhythm.
 func (b *Boss) Stompable() bool { return b.state == bsExposed }
 
+// exposedTicks is how long a boss stays vulnerable. Deliberately *not* scaled
+// by rage: as a boss loses health its attacks come faster, but the window to
+// punish it stays just as generous. Shrinking it made the final hit of every
+// fight the hardest one, which is backwards.
+//
+// The player needs time to back off, line up and land a jump, so these are
+// measured in "comfortably more than one jump arc" — a jump takes about 40
+// ticks up and down.
+func exposedTicks(kind int) int {
+	switch kind {
+	case gfx.BossScrapemaster:
+		return 170 // the first boss anyone meets: give them room to learn it
+	case gfx.BossBaron:
+		return 150
+	case gfx.BossLeviathan:
+		return 145
+	case gfx.BossLunar:
+		return 140
+	default:
+		return 140
+	}
+}
+
 func (b *Boss) Update(w *World) {
 	b.animT += 0.06
 	if b.hurtT > 0 {
@@ -162,7 +185,7 @@ func (b *Boss) think(w *World) {
 					w.Shots = append(w.Shots, s)
 				}
 				b.state = bsExposed
-				b.timer = int(90 / rage)
+				b.timer = exposedTicks(b.Kind)
 			}
 		case bsExposed:
 			b.VX = 0
@@ -195,7 +218,7 @@ func (b *Boss) think(w *World) {
 				w.shake(7)
 				w.sfxBump()
 				b.state = bsExposed
-				b.timer = int(110 / rage)
+				b.timer = exposedTicks(b.Kind)
 				// the impact shakes mines loose from the ceiling
 				for i := 0; i < 3; i++ {
 					x := b.arenaL + (b.arenaR-b.arenaL)*w.rng.Float64()
@@ -235,7 +258,7 @@ func (b *Boss) think(w *World) {
 			if b.timer <= 0 {
 				// drops to the floor, exposed
 				b.state = bsExposed
-				b.timer = int(100 / rage)
+				b.timer = exposedTicks(b.Kind)
 			}
 		case bsExposed:
 			if b.Y < b.floorY-b.H {
@@ -271,7 +294,7 @@ func (b *Boss) think(w *World) {
 				b.X = p.CX() - b.W/2 + (w.rng.Float64()-0.5)*40
 				b.clampArena()
 				b.state = bsExposed
-				b.timer = int(90 / rage)
+				b.timer = exposedTicks(b.Kind)
 				w.Particles.Ring(b.CX(), b.CY(), gfx.ColPurple, 8)
 			}
 		case bsExposed:
@@ -324,7 +347,7 @@ func (b *Boss) think(w *World) {
 			}
 			if b.timer <= 0 {
 				b.state = bsExposed
-				b.timer = int(96 / rage)
+				b.timer = exposedTicks(b.Kind)
 			}
 		case bsExposed:
 			if b.Y < b.floorY-b.H {
@@ -499,6 +522,17 @@ func (s *Shot) Update(w *World) {
 			w.Particles.Burst(s.CX(), s.Bottom(), 10, gfx.ColGold, 2.0)
 		}
 	case shotWave:
+		// A shockwave breaks against a wall instead of sliding through it and
+		// loitering at the edge of the arena.
+		lead := s.X
+		if s.VX > 0 {
+			lead = s.Right()
+		}
+		if l.At(ifloor(lead/TS), ifloor(s.CY()/TS)).Solid() {
+			s.Alive = false
+			w.Particles.Burst(s.CX(), s.CY(), 6, gfx.ColGoldLight, 1.4)
+			return
+		}
 		s.X += s.VX
 		// hug the floor
 		s.MoveY(l, 2, false)

@@ -860,13 +860,17 @@ var chunks = map[string]Chunk{
 	// Boss arenas — a walled room with a gate the player walks through
 	// ---------------------------------------------------------------
 
+	// The last chance to re-arm before a boss. Two ? blocks past the
+	// checkpoint, so arriving (or respawning) without a power-up is never a
+	// dead end: small Dario gets a Compute Cluster, a scaled one gets the
+	// Constitution Scroll back.
 	"boss_approach": {[]string{
 		"..................",
 		"..................",
 		"..................",
 		"..................",
 		"..................",
-		"..................",
+		"...?.......?......",
 		"..............Z...",
 		"..................",
 		"........!.........",

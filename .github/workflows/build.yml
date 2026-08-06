@@ -18,13 +18,21 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-      # Ebitengine links against OpenGL, X11 and ALSA on Linux.
+      # Ebitengine links against OpenGL, X11 and ALSA on Linux. xvfb provides
+      # the virtual display the next step needs.
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-dev xorg-dev libasound2-dev
+          sudo apt-get install -y libgl1-mesa-dev xorg-dev libasound2-dev xvfb
+
       - run: go vet ./...
-      - run: go test ./...
+
+      # Importing Ebitengine runs an init() that opens the display, so every
+      # package that transitively imports it — which is most of them — needs
+      # an X server even for tests that never draw a frame. A headless runner
+      # has none, hence xvfb.
+      - name: Test
+        run: xvfb-run -a go test ./...
 
   build:
     needs: test

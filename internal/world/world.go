@@ -470,13 +470,30 @@ func (w *World) collideEnemies() {
 	if w.Boss != nil && w.Boss.state != bsDying && w.Boss.state != bsDone && w.Boss.state != bsIntro {
 		b := w.Boss
 		if p.Overlaps(&b.Body) {
-			if p.Halo > 0 {
+			switch {
+			case b.hurtT > 0:
+				// The boss is reeling. It cannot hurt you while it flashes —
+				// without this, landing a stomp knocks it out of its
+				// vulnerable state and the very next frame, with the player
+				// still overlapping it, counts as a body hit. Every
+				// successful stomp used to cost a life.
+
+			case p.Halo > 0:
 				b.Damage(w, 1)
-			} else if b.Stompable() && p.VY > 0 && p.Bottom()-p.VY <= b.Y+12 {
-				b.Damage(w, 1)
-				p.Bounce(p.jumping)
-				sfx.Play(sfx.SndStomp)
-			} else {
+
+			case b.Stompable() && p.VY > 0 && p.Bottom()-p.VY <= b.Y+12:
+				if b.Damage(w, 1) {
+					p.Bounce(p.jumping)
+					// A full second of grace: the bounce arc alone is about
+					// 40 ticks, so this leaves room to land and run clear
+					// before the boss is dangerous to touch again.
+					if p.Invuln < 60 {
+						p.Invuln = 60
+					}
+					sfx.Play(sfx.SndStomp)
+				}
+
+			default:
 				p.Hurt(w)
 			}
 		}
@@ -708,6 +725,14 @@ func (w *World) onHaloEnd() {
 }
 
 func (w *World) onBossDying() {
+	// Everything the boss threw fizzles out with it. Landing the final blow
+	// and then being killed by a shockwave already in flight is a rotten way
+	// to lose a fight you have won.
+	for _, s := range w.Shots {
+		s.Alive = false
+		w.Particles.Burst(s.CX(), s.CY(), 5, gfx.ColCream, 1.2)
+	}
+	w.Shots = nil
 	sfx.Play(sfx.SndBossDie)
 	sfx.StopMusic()
 }
@@ -748,6 +773,10 @@ func (w *World) Respawn() {
 	w.Bolts = nil
 	w.Boss = nil
 	w.bossLocked = false
+	// Dario respawns Small, so give him back the power-up blocks he already
+	// opened — otherwise a death at the boss leaves him with no way to re-arm.
+	w.Level.RefillQuestionBlocks()
+	w.brickCoins = map[int]int{}
 	// wake everything back up
 	for _, e := range w.Enemies {
 		e.active = false
