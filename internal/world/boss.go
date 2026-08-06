@@ -40,6 +40,7 @@ type Boss struct {
 	arenaL   float64
 	arenaR   float64
 	floorY   float64
+	ceilY    float64 // underside of the arena roof; falling attacks start here
 	Defeated bool
 	facing2  float64
 	charge   float64
@@ -71,11 +72,35 @@ func newBoss(kind int, x, y float64) *Boss {
 	return b
 }
 
-// SetArena confines the boss to the room it fights in.
-func (b *Boss) SetArena(left, right, floor float64) {
+// SetArena confines the boss to the room it fights in and locates its roof.
+//
+// Falling attacks have to start *below* the roof. Spawning them at a fixed
+// height above the floor put them inside the ceiling tiles, where they
+// immediately registered a landing and died — the player saw a warning marker
+// blink near the top of the screen and then nothing at all.
+func (b *Boss) SetArena(l *Level, left, right, floor float64) {
 	b.arenaL, b.arenaR, b.floorY = left, right, floor
 	b.Y = floor - b.H
 	b.home[1] = b.Y
+
+	b.ceilY = 0
+	midTx := ifloor((left + right) / 2 / TS)
+	for ty := ifloor(floor/TS) - 1; ty >= 0; ty-- {
+		if l.At(midTx, ty).Solid() {
+			b.ceilY = float64((ty + 1) * TS)
+			break
+		}
+	}
+}
+
+// dropFrom is where a falling attack starts: just under the roof, and always
+// far enough above the floor to be a real threat on the way down.
+func (b *Boss) dropFrom() float64 {
+	y := b.ceilY + 6
+	if lowest := b.floorY - 96; y > lowest {
+		y = lowest
+	}
+	return y
 }
 
 func (b *Boss) Vulnerable() bool {
@@ -222,7 +247,7 @@ func (b *Boss) think(w *World) {
 				// the impact shakes mines loose from the ceiling
 				for i := 0; i < 3; i++ {
 					x := b.arenaL + (b.arenaR-b.arenaL)*w.rng.Float64()
-					w.Shots = append(w.Shots, newShot(x, b.floorY-190, 0, 1.0, shotMeteor))
+					w.Shots = append(w.Shots, newShot(x, b.dropFrom(), 0, 1.0, shotMeteor))
 				}
 			}
 		case bsExposed:
@@ -287,7 +312,7 @@ func (b *Boss) think(w *World) {
 			b.Y = b.home[1] - 60 + math.Sin(b.animT*1.1)*16
 			if b.timer%22 == 0 {
 				x := b.arenaL + 20 + (b.arenaR-b.arenaL-40)*w.rng.Float64()
-				w.Shots = append(w.Shots, newShot(x, b.floorY-200, 0, 0.8, shotMeteor))
+				w.Shots = append(w.Shots, newShot(x, b.dropFrom(), 0, 0.8, shotMeteor))
 			}
 			if b.timer <= 0 {
 				// teleports down to gloat — the only chance to hit it
@@ -332,10 +357,13 @@ func (b *Boss) think(w *World) {
 			}
 		case bsAct:
 			b.Y = b.home[1] - 48 + math.Sin(b.animT*1.2)*12
-			interval := 26 - b.Phase*6
+			// Paced so each strike is readable. These only started landing
+			// once the drop height was fixed, and at the old cadence they
+			// arrived faster than the telegraph could be acted on.
+			interval := 30 - b.Phase*5
 			if b.timer%interval == 0 {
 				// lightning falls where Dario is standing
-				w.Shots = append(w.Shots, newShot(p.CX(), b.floorY-200, 0, 1.4, shotBolt))
+				w.Shots = append(w.Shots, newShot(p.CX(), b.dropFrom(), 0, 1.4, shotBolt))
 				w.sfxShoot()
 			}
 			if b.Phase >= 1 && b.timer%40 == 0 {
@@ -467,7 +495,8 @@ type Shot struct {
 	Alive bool
 	life  int
 	animT float64
-	warn  int // telegraph before a falling attack becomes lethal
+	warn  int     // telegraph before a falling attack becomes lethal
+	landY float64 // where it will hit, for the ground marker; <0 = unknown
 }
 
 func newShot(x, y, vx, vy float64, k shotKind) *Shot {
@@ -487,6 +516,7 @@ func newShot(x, y, vx, vy float64, k shotKind) *Shot {
 	}
 	s.X, s.Y = x-s.W/2, y-s.H/2
 	s.VX, s.VY = vx, vy
+	s.landY = -1
 	return s
 }
 
@@ -500,11 +530,14 @@ func (s *Shot) Update(w *World) {
 		s.Alive = false
 		return
 	}
+	l := w.Level
+	if s.landY < 0 {
+		s.landY = s.floorHit(l)
+	}
 	if s.warn > 0 {
 		s.warn--
 		return // still telegraphing; harmless and stationary
 	}
-	l := w.Level
 	switch s.Kind {
 	case shotOrb:
 		s.VY += 0.10
@@ -561,10 +594,27 @@ func (s *Shot) Draw(dst *ebiten.Image, camX, camY float64, tick int) {
 	}
 	x, y := s.X-camX, s.Y-camY
 	if s.warn > 0 {
-		// telegraph: a blinking marker where it is about to land
-		if (s.warn/4)%2 == 0 {
+		blink := (s.warn/4)%2 == 0
+		// A marker on the ground where it will land, so the warning says
+		// something useful — "move off this spot" — rather than just blinking
+		// somewhere overhead.
+		if s.landY >= 0 {
+			ly := s.landY + s.H - camY
+			a := 0.30
+			if blink {
+				a = 0.75
+			}
+			gfx.FillRectF(dst, x-4, ly-2, s.W+8, 2, gfx.Alpha(gfx.ColRed, a))
+			gfx.FillRectF(dst, x-1, ly-5, 2, 3, gfx.Alpha(gfx.ColRed, a))
+			gfx.FillRectF(dst, x+s.W-1, ly-5, 2, 3, gfx.Alpha(gfx.ColRed, a))
+			// a falling hint line between the two
+			for dy := y + s.H + 6; dy < ly-6; dy += 10 {
+				gfx.FillRectF(dst, x+s.W/2-1, dy, 2, 4, gfx.Alpha(gfx.ColRed, a*0.35))
+			}
+		}
+		if blink {
 			gfx.StrokeRectF(dst, x-3, y-3, s.W+6, s.H+6, gfx.ColGoldLight)
-			gfx.FillRectF(dst, x, y, s.W, s.H, gfx.Alpha(gfx.ColRed, 0.35))
+			gfx.FillRectF(dst, x, y, s.W, s.H, gfx.Alpha(gfx.ColRed, 0.45))
 		}
 		return
 	}

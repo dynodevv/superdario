@@ -86,6 +86,10 @@ func TestStompingABossDoesNotHurtThePlayer(t *testing.T) {
 			powerBefore := wd.Player.Power
 			placeStomp(wd)
 			wd.Update(Input{})
+			// This test is about boss *contact*, so clear any projectiles in
+			// flight — the simulated player stands still and would otherwise
+			// be measuring its own inability to dodge.
+			wd.Shots = nil
 
 			if b.HP != hpBefore-1 {
 				t.Errorf("%d-%d: stomp did not damage the boss (hp %d -> %d)",
@@ -96,6 +100,7 @@ func TestStompingABossDoesNotHurtThePlayer(t *testing.T) {
 			// state the instant it is hit, and the player has not moved yet.
 			for i := 0; i < 45; i++ {
 				wd.Update(Input{})
+				wd.Shots = nil
 				if wd.Player.Dead {
 					t.Fatalf("%d-%d: player died %d frames after a successful stomp", w+1, l+1, i)
 				}
@@ -127,6 +132,10 @@ func TestEveryBossIsBeatableByStompingAlone(t *testing.T) {
 			cooldown := 0
 			const limit = 60 * 60 * 4 // four simulated minutes
 			for i := 0; i < limit && !b.Defeated; i++ {
+				// The question here is whether the stomp loop can fell every
+				// boss, not whether a stationary dummy can dodge. Projectiles
+				// are covered by TestFallingBossAttacksReachThePlayer.
+				wd.Shots = nil
 				switch {
 				case cooldown > 0:
 					cooldown--
@@ -164,6 +173,91 @@ func TestEveryBossIsBeatableByStompingAlone(t *testing.T) {
 				t.Errorf("%d-%d (%s): beating the boss did not open the exit", w+1, l+1, def.Name)
 			}
 			t.Logf("%d-%d %-20s beaten in %d stomps", w+1, l+1, def.Name, hits)
+		}
+	}
+}
+
+// A boss attack the player can safely ignore is not an attack.
+//
+// Falling attacks used to spawn at a fixed height above the floor, which put
+// them inside the arena's ceiling tiles — floorHit found the roof immediately
+// and they died a few pixels below where they appeared. All the player ever
+// saw was a warning marker blinking near the top of the screen.
+func TestFallingBossAttacksReachThePlayer(t *testing.T) {
+	for w := range Levels {
+		for l := range Levels[w] {
+			def := Levels[w][l]
+			if def.Boss < 0 {
+				continue
+			}
+			wd := startBossFight(t, w, l, core.PowerScaled)
+			b := wd.Boss
+
+			// Where the player's head sits when standing on the arena floor.
+			headY := b.floorY - wd.Player.H
+			spawned, arrived := 0, 0
+			seen := map[*Shot]bool{}
+
+			for i := 0; i < 60*60*2; i++ {
+				wd.Update(Input{})
+				wd.Player.Invuln = 600 // measuring reach, not survival
+				for _, s := range wd.Shots {
+					if s.Kind != shotMeteor && s.Kind != shotBolt {
+						continue
+					}
+					if !seen[s] {
+						seen[s] = true
+						spawned++
+					}
+					if s.Alive && s.warn == 0 && s.Bottom() >= headY {
+						arrived++
+						seen[s] = true
+						s.Alive = false // counted; stop tracking it
+					}
+				}
+				if b.Defeated {
+					break
+				}
+			}
+
+			if spawned == 0 {
+				continue // this boss does not use falling attacks
+			}
+			if arrived == 0 {
+				t.Errorf("%d-%d (%s): %d falling attacks spawned and not one reached the player's height (%.0f)",
+					w+1, l+1, def.Name, spawned, headY)
+			}
+			t.Logf("%d-%d %-20s %d/%d falling attacks reached the player",
+				w+1, l+1, def.Name, arrived, spawned)
+		}
+	}
+}
+
+// Falling attacks must start inside the room, not buried in its ceiling.
+func TestFallingAttacksStartBelowTheCeiling(t *testing.T) {
+	for w := range Levels {
+		for l := range Levels[w] {
+			def := Levels[w][l]
+			if def.Boss < 0 {
+				continue
+			}
+			wd := startBossFight(t, w, l, core.PowerScaled)
+			b := wd.Boss
+			drop := b.dropFrom()
+
+			if b.ceilY > 0 && drop < b.ceilY {
+				t.Errorf("%d-%d (%s): attacks drop from y=%.0f, above the ceiling at y=%.0f",
+					w+1, l+1, def.Name, drop, b.ceilY)
+			}
+			tx := ifloor((b.arenaL + b.arenaR) / 2 / TS)
+			if wd.Level.At(tx, ifloor(drop/TS)).Solid() {
+				t.Errorf("%d-%d (%s): attacks drop from inside a solid tile at y=%.0f",
+					w+1, l+1, def.Name, drop)
+			}
+			if gap := b.floorY - drop; gap < 64 {
+				t.Errorf("%d-%d (%s): attacks only fall %.0fpx before landing; that is no threat",
+					w+1, l+1, def.Name, gap)
+			}
 		}
 	}
 }

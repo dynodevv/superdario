@@ -375,7 +375,7 @@ func (w *World) maybeStartBoss() {
 
 	floor := float64((l.H - 3) * TS)
 	b := newBoss(l.Def.Boss, left+arenaW*0.72, floor)
-	b.SetArena(w.bossLeft, w.bossRight, floor)
+	b.SetArena(l, w.bossLeft, w.bossRight, floor)
 	w.Boss = b
 	w.BossIntroT = 120
 	sfx.PlayMusic(sfx.MusBoss)
