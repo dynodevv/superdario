@@ -63,6 +63,11 @@ func BuildLevel(def LevelDef) (*Level, error) {
 	l.bump = make([]int8, l.W*l.H)
 	l.hidden = make([]bool, l.W*l.H)
 
+	// Cells that held a spawn character. The entity goes into the world and
+	// the cell is left empty — but "empty" is wrong inside water, so these get
+	// backfilled from their surroundings once the whole level exists.
+	var spawnCells [][2]int
+
 	x0 := 0
 	for _, name := range def.Chunks {
 		c := chunks[name]
@@ -91,6 +96,7 @@ func BuildLevel(def LevelDef) (*Level, error) {
 				tx := x0 + rx
 				if isSpawn(ch) {
 					l.addSpawn(ch, tx, ty)
+					spawnCells = append(spawnCells, [2]int{tx, ty})
 					continue
 				}
 				if t, ok := runeToTile[ch]; ok {
@@ -105,9 +111,83 @@ func BuildLevel(def LevelDef) (*Level, error) {
 		// no '@' in the chunk list: drop Dario on the first solid ground
 		l.StartX, l.StartY = float64(2*TS), float64((l.H-4)*TS)
 	}
+	l.backfillSpawnCells(spawnCells)
+	if def.Underwater {
+		l.floodUnderwater()
+	}
+
 	l.orig = make([]Tile, len(l.tiles))
 	copy(l.orig, l.tiles)
 	return l, nil
+}
+
+// floodUnderwater fills an underwater stage with water everywhere below its
+// surface line.
+//
+// Water levels are assembled from water chunks *and* shared chunks like
+// "checkpoint", which are drawn as open air. Dropped into an ocean, an air
+// chunk leaves a full-height column with no water in it — the player walks
+// around on the seabed in a dry shaft, unable to swim. Rather than maintain a
+// water-flavoured duplicate of every shared chunk, the level floods itself:
+// find the surface row, then turn every empty cell at or below it into water.
+func (l *Level) floodUnderwater() {
+	surface := -1
+	for ty := 0; ty < l.H && surface < 0; ty++ {
+		for tx := 0; tx < l.W; tx++ {
+			if l.tiles[ty*l.W+tx].Liquid() {
+				surface = ty
+				break
+			}
+		}
+	}
+	if surface < 0 {
+		return // no water in this level after all
+	}
+	for ty := surface; ty < l.H; ty++ {
+		for tx := 0; tx < l.W; tx++ {
+			i := ty*l.W + tx
+			if l.tiles[i] != TEmpty {
+				continue
+			}
+			if ty == surface {
+				l.tiles[i] = TLiquidTop
+			} else {
+				l.tiles[i] = TLiquid
+			}
+		}
+	}
+}
+
+// backfillSpawnCells repairs the holes left by spawn characters.
+//
+// A chunk cell holding 'o', 'l', '@' and so on places an entity and leaves the
+// tile empty. Empty is right on land, but inside water it punches an air
+// pocket: the surrounding tiles are liquid and the spawn cell is not. That
+// looks like a rectangular hole in the water, and it breaks swimming, because
+// the physics sample the single tile under the player's centre — drifting
+// through a pocket flips them to land gravity mid-stroke and back again.
+//
+// So: any spawn cell whose neighbours are liquid becomes liquid too.
+func (l *Level) backfillSpawnCells(cells [][2]int) {
+	for _, c := range cells {
+		tx, ty := c[0], c[1]
+		if l.RawAt(tx, ty) != TEmpty {
+			continue
+		}
+		fill := TEmpty
+		// Prefer a horizontal neighbour: on the surface row those are
+		// TLiquidTop, and matching them keeps the wave line unbroken.
+		for _, n := range [][2]int{{tx - 1, ty}, {tx + 1, ty}, {tx, ty - 1}, {tx, ty + 1}} {
+			t := l.RawAt(n[0], n[1])
+			if t.Liquid() {
+				fill = t
+				break
+			}
+		}
+		if fill != TEmpty {
+			l.tiles[ty*l.W+tx] = fill
+		}
+	}
 }
 
 // RefillQuestionBlocks puts spent ? blocks back. Called when Dario respawns at
@@ -328,9 +408,9 @@ func (l *Level) Draw(dst *ebiten.Image, camX, camY float64, tick int) {
 			case TPipeBR:
 				img = ts.Pipe[3]
 			case TSpike:
-				img = ts.Spike
+				img = ts.SpikeFloor
 			case TSpikeDown:
-				img = ts.SpikeUp
+				img = ts.SpikeCeil
 			case TLiquid:
 				img = ts.Liquid[liqFrame]
 			case TLiquidTop:

@@ -48,12 +48,13 @@ type Tileset struct {
 	Block      *ebiten.Image
 	Question   [4]*ebiten.Image // 3 idle frames + spent
 	Pipe       [6]*ebiten.Image // TL TR BL BR, and horizontal mouth top/bottom
-	Spike      *ebiten.Image
-	SpikeUp    *ebiten.Image
+	SpikeFloor *ebiten.Image    // stands on the ground, points up
+	SpikeCeil  *ebiten.Image    // hangs from the ceiling, points down
 	Liquid     [3]*ebiten.Image
 	LiquidTop  [3]*ebiten.Image
 	Platform   *ebiten.Image
-	Girder     *ebiten.Image
+	Girder     *ebiten.Image // full-height structural tile (solid)
+	GirderBeam *ebiten.Image // thin rail, for moving platforms
 	Belt       [4]*ebiten.Image
 	Deco       [4]*ebiten.Image
 	Ladder     *ebiten.Image
@@ -319,38 +320,53 @@ func BuildTileset(t Theme, seed int64) *Tileset {
 
 	// --- spikes ---------------------------------------------------------
 	{
-		mk := func(up bool) *ebiten.Image {
+		// Three spikes on a mounting plate. The old version computed its
+		// width as (11-h)/2 while stepping y downward, which drew each spike
+		// widest at the *top* — floor spikes rendered as hanging wedges, 11px
+		// across, overlapping each other into a row of blunt teeth.
+		mkSpikes := func(ceiling bool) *ebiten.Image {
 			c := NewCanvas(TS, TS)
-			metal := color.RGBA{0xb9, 0xbd, 0xc6, 0xff}
-			dark := color.RGBA{0x51, 0x57, 0x63, 0xff}
+			metal := color.RGBA{0xc4, 0xc9, 0xd2, 0xff}
+			hi := color.RGBA{0xee, 0xf2, 0xf7, 0xff}
+			edge := color.RGBA{0x6e, 0x76, 0x86, 0xff}
+			base := color.RGBA{0x4a, 0x50, 0x5c, 0xff}
 			if t.Underground || t.Liquid == LiquidLava {
-				metal = color.RGBA{0xd6, 0xc8, 0xb0, 0xff}
-				dark = color.RGBA{0x6b, 0x5c, 0x48, 0xff}
+				metal = color.RGBA{0xdc, 0xcd, 0xb2, 0xff}
+				hi = color.RGBA{0xf6, 0xec, 0xd8, 0xff}
+				edge = color.RGBA{0x82, 0x70, 0x56, 0xff}
+				base = color.RGBA{0x5c, 0x4d, 0x3a, 0xff}
 			}
-			for s := 0; s < 3; s++ {
-				bx := s*5 + 1
-				for h := 0; h < 11; h++ {
-					wdt := (11 - h) / 2
-					y := 4 + h
-					if up {
-						y = TS - 5 - h
+
+			const plate = 3      // mounting plate
+			const h = TS - plate // spike height
+			// Two broad spikes per tile rather than three narrow ones: at this
+			// size three tapered to near-needles and read as a picket fence.
+			for _, cx := range [2]int{4, 11} {
+				for i := 0; i < h; i++ {
+					// i counts from the base to the tip: 7px wide down to 1px
+					half := 3 * (h - 1 - i) / (h - 1)
+					y := TS - 1 - plate - i // standing on the floor
+					if ceiling {
+						y = plate + i // hanging from the roof
 					}
-					c.HLine(bx+2-wdt, y, wdt*2+1, metal)
-					c.Px(bx+2-wdt, y, dark)
-					c.Px(bx+2+wdt, y, dark)
+					c.HLine(cx-half, y, half*2+1, metal)
+					if half > 0 {
+						c.Px(cx-half, y, hi)   // lit edge
+						c.Px(cx+half, y, edge) // shaded edge
+					}
 				}
 			}
-			if up {
-				c.FillRect(0, 0, TS, 4, dark)
-				c.HLine(0, 3, TS, Scale(dark, 1.3))
+			if ceiling {
+				c.FillRect(0, 0, TS, plate, base)
+				c.HLine(0, plate-1, TS, Scale(base, 1.35))
 			} else {
-				c.FillRect(0, TS-4, TS, 4, dark)
-				c.HLine(0, TS-4, TS, Scale(dark, 1.3))
+				c.FillRect(0, TS-plate, TS, plate, base)
+				c.HLine(0, TS-plate, TS, Scale(base, 1.35))
 			}
 			return c.Img()
 		}
-		ts.Spike = mk(false) // spikes pointing up, base at bottom
-		ts.SpikeUp = mk(true)
+		ts.SpikeFloor = mkSpikes(false)
+		ts.SpikeCeil = mkSpikes(true)
 	}
 
 	// --- liquid ---------------------------------------------------------
@@ -407,7 +423,29 @@ func BuildTileset(t Theme, seed int64) *Tileset {
 		ts.Platform = c.Img()
 	}
 
-	// --- girder (moving platforms / castle structure) -------------------
+	// --- girder ----------------------------------------------------------
+	// A full-height structural tile. Girders are solid and world 4's floors
+	// are built from them, so drawing only the top 8px left a transparent
+	// slot under the player's feet — the ground looked like it was floating.
+	{
+		c := NewCanvas(TS, TS)
+		face := Mix(t.BlockFace, t.Accent, 0.25)
+		web := Scale(face, 0.42)
+		c.FillRect(0, 0, TS, TS, web)
+		// lattice between the flanges
+		c.Line(0, TS-5, TS/2, 5, Scale(face, 0.85))
+		c.Line(TS/2, 5, TS-1, TS-5, Scale(face, 0.85))
+		c.VLine(TS/2, 5, TS-9, Scale(face, 0.7))
+		// top and bottom flanges
+		c.Bevel(0, 0, TS, 5, face, Scale(face, 1.35), Scale(face, 0.55))
+		c.Bevel(0, TS-4, TS, 4, face, Scale(face, 1.2), Scale(face, 0.5))
+		for x := 2; x < TS-2; x += 5 {
+			c.Px(x, 2, Scale(face, 1.55))
+		}
+		ts.Girder = c.Img()
+	}
+	// A thin beam for moving platforms, which should read as a floating rail
+	// rather than a slab.
 	{
 		c := NewCanvas(TS, TS)
 		face := Mix(t.BlockFace, t.Accent, 0.25)
@@ -416,16 +454,27 @@ func BuildTileset(t Theme, seed int64) *Tileset {
 			c.Px(x, 2, Scale(face, 1.5))
 			c.Px(x, 5, Scale(face, 0.5))
 		}
-		ts.Girder = c.Img()
+		ts.GirderBeam = c.Img()
 	}
 
 	// --- conveyor belt (4 scroll frames) --------------------------------
+	// Also full height: a belt is a solid tile, and a half-height sprite left
+	// a see-through gap beneath it.
 	for f := 0; f < 4; f++ {
 		c := NewCanvas(TS, TS)
 		face := Scale(t.BlockFace, 0.8)
+		housing := Scale(t.BlockFace, 0.40)
+		c.FillRect(0, 0, TS, TS, housing)
+		// rollers turning inside the housing
+		for x := 3; x < TS; x += 7 {
+			c.FillCircle(x, 11, 2, Scale(t.BlockFace, 0.62))
+			c.Px(x-1+f%2, 10, Scale(t.BlockFace, 0.95))
+		}
+		c.HLine(0, TS-1, TS, Scale(t.BlockFace, 0.28))
+		// the moving surface
 		c.FillRect(0, 0, TS, 8, face)
 		c.HLine(0, 0, TS, Scale(face, 1.4))
-		c.HLine(0, 7, TS, Scale(face, 0.5))
+		c.HLine(0, 7, TS, Scale(face, 0.45))
 		for x := -8; x < TS+8; x += 8 {
 			c.Line(x+f*2, 6, x+f*2+4, 1, t.Accent)
 		}

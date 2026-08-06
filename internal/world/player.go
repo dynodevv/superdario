@@ -34,6 +34,7 @@ type Player struct {
 	jumping  bool
 	animT    float64
 	swimT    int
+	strokeCD int // ticks until the next stroke while the button is held
 	boltCD   int
 	Transf   int // transform freeze timer
 	transfTo core.PowerState
@@ -204,14 +205,24 @@ func (p *Player) Update(w *World, in Input) {
 
 	if inWater {
 		p.swimT++
-		if in.Jump {
+		if p.strokeCD > 0 {
+			p.strokeCD--
+		}
+		// Tap to stroke, or hold to keep stroking. Requiring a mash to gain
+		// height is miserable, especially on a d-pad.
+		stroke := in.Jump || (in.JumpDown && p.strokeCD == 0)
+		if stroke {
 			p.VY = core.SwimStroke
+			p.strokeCD = core.SwimHoldGap
 			p.swimT = 0
 			w.playSwim()
 		}
-		if p.VY < core.SwimStroke {
-			p.VY = core.SwimStroke
+		// cap the climb so chained strokes rise smoothly rather than rocketing
+		if p.VY < core.SwimRise {
+			p.VY = core.SwimRise
 		}
+		p.jumping = false
+		p.coyote = 0
 	} else if p.jumpBuf > 0 && p.coyote > 0 {
 		v := core.JumpVel
 		// a running jump goes noticeably higher

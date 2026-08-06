@@ -148,8 +148,8 @@ func (d *dumper) Draw(screen *ebiten.Image) {
 			labeled{"SOIL", ts.Soil}, labeled{"BRICK", ts.Brick}, labeled{"BLOCK", ts.BrickSolid},
 			labeled{"Q0", ts.Question[0]}, labeled{"Q3", ts.Question[3]},
 			labeled{"PTL", ts.Pipe[0]}, labeled{"PTR", ts.Pipe[1]}, labeled{"PBL", ts.Pipe[2]}, labeled{"PBR", ts.Pipe[3]},
-			labeled{"SPIKE", ts.Spike}, labeled{"LIQ", ts.Liquid[0]}, labeled{"LIQTOP", ts.LiquidTop[0]},
-			labeled{"PLAT", ts.Platform}, labeled{"GIRDER", ts.Girder}, labeled{"BELT", ts.Belt[0]},
+			labeled{"SPIKEFLR", ts.SpikeFloor}, labeled{"SPIKECEI", ts.SpikeCeil}, labeled{"LIQ", ts.Liquid[0]}, labeled{"LIQTOP", ts.LiquidTop[0]},
+			labeled{"PLAT", ts.Platform}, labeled{"GIRDER", ts.Girder}, labeled{"GBEAM", ts.GirderBeam}, labeled{"BELT", ts.Belt[0]},
 			labeled{"DECO0", ts.Deco[0]}, labeled{"DECO1", ts.Deco[1]}, labeled{"LADDER", ts.Ladder}, labeled{"CLOUD", ts.Cloud},
 		)
 		save(fmt.Sprintf("art_tiles_w%d.png", i+1), sheet(ts.Theme.Name, 11, 16, 16, 5, tl))

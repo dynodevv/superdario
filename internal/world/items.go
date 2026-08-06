@@ -289,7 +289,7 @@ func (p *Platform) Draw(dst *ebiten.Image, ts *gfx.Tileset, camX, camY float64) 
 	}
 	n := int(p.W) / TS
 	for i := 0; i < n; i++ {
-		gfx.DrawSprite(dst, ts.Girder, p.X+float64(i*TS)-camX, p.Y-camY, gfx.SpriteOpt{})
+		gfx.DrawSprite(dst, ts.GirderBeam, p.X+float64(i*TS)-camX, p.Y-camY, gfx.SpriteOpt{})
 	}
 }
 

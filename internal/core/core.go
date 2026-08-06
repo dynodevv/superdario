@@ -18,8 +18,8 @@ const (
 	Gravity      = 0.34
 	GravityLow   = 0.22 // world 4, low gravity
 	MaxFall      = 8.0
-	WaterGravity = 0.10
-	WaterMaxFall = 1.6
+	WaterGravity = 0.13
+	WaterMaxFall = 2.0
 
 	WalkAccel = 0.22
 	RunAccel  = 0.31
@@ -32,11 +32,19 @@ const (
 	JumpVel      = -6.55
 	JumpRunBonus = -0.85 // extra impulse when at full speed
 	JumpCut      = 0.42  // velocity multiplier when jump is released early
-	SwimStroke   = -1.55
-	CoyoteTicks  = 6
-	BufferTicks  = 7
-	StompBounce  = -4.6
-	StompHold    = -6.2
+
+	// Swimming. A stroke has to be worth making: at -1.55 against 0.10
+	// gravity each one lifted about 12px — under a single tile — so climbing
+	// felt like it did nothing. -2.7 against 0.13 clears ~28px, comfortably
+	// more than a tile, and SwimRise caps how fast a chain of strokes climbs.
+	SwimStroke  = -2.70
+	SwimRise    = -2.30 // terminal upward speed while stroking
+	SwimHoldGap = 13    // ticks between automatic strokes when jump is held
+
+	CoyoteTicks = 6
+	BufferTicks = 7
+	StompBounce = -4.6
+	StompHold   = -6.2
 )
 
 // PowerState is Dario's current upgrade tier.
