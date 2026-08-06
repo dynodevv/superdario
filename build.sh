@@ -75,20 +75,11 @@ build_linux() {
 }
 
 build_darwin() {
-  echo "== darwin universal =="
+  # Apple Silicon only — Intel Macs are not a supported target.
+  echo "== darwin/arm64 =="
   mkdir -p "${DIST}/darwin"
   CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 \
-    go build -trimpath -ldflags "${LDFLAGS}" -o "${DIST}/darwin/SuperDario-arm64" "${PKG}"
-  CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
-    go build -trimpath -ldflags "${LDFLAGS}" -o "${DIST}/darwin/SuperDario-amd64" "${PKG}"
-
-  if have lipo; then
-    lipo -create -output "${DIST}/darwin/SuperDario" \
-      "${DIST}/darwin/SuperDario-arm64" "${DIST}/darwin/SuperDario-amd64"
-    rm -f "${DIST}/darwin/SuperDario-arm64" "${DIST}/darwin/SuperDario-amd64"
-  else
-    mv "${DIST}/darwin/SuperDario-$(go env GOARCH)" "${DIST}/darwin/SuperDario"
-  fi
+    go build -trimpath -ldflags "${LDFLAGS}" -o "${DIST}/darwin/SuperDario" "${PKG}"
   chmod +x "${DIST}/darwin/SuperDario"
 
   ./scripts/make-app-bundle.sh "${DIST}/darwin/SuperDario" "${DIST}/darwin/SuperDario.app" "${VERSION}"

@@ -114,8 +114,11 @@ go run ./cmd/genicon .
 
 That writes `assets/icon.ico`, `assets/icon.icns`, `assets/icon_*.png`, and the
 `cmd/superdario/resource_windows_*.syso` files that give `SuperDario.exe` its
-icon in Explorer. The generated files are committed so a plain `go build` is
-enough; CI regenerates them so they cannot drift from the art.
+icon in Explorer. The generated files are **committed**, so a plain `go build`
+produces a properly branded binary with no extra step. CI regenerates them and
+fails if they have gone stale, so the committed bundles cannot drift from the
+art. Generation is deterministic — the same source always yields byte-identical
+output.
 
 ### Windows
 
@@ -134,11 +137,13 @@ piped. Launched from Explorer there is no console and nothing is printed.
 
 ### macOS
 
+**Apple Silicon only.** Intel Macs are not a supported target.
+
 Ebitengine binds to Cocoa and Metal, so macOS builds need cgo **and must be
 built on a Mac** (`xcode-select --install`).
 
 ```bash
-./build.sh darwin                 # universal arm64 + amd64 binary and a .app bundle
+./build.sh darwin                 # arm64 binary and a .app bundle
 ```
 
 The bundle is unsigned, so the first launch needs a right-click → Open, or:
@@ -161,9 +166,14 @@ command for your distro if any are missing.
 
 ### All platforms at once
 
-`.github/workflows/build.yml` builds Windows, Linux, macOS arm64 and macOS
-amd64 on every push and uploads them as artifacts. That is the easiest way to
-get a Mac build without owning a Mac.
+`.github/workflows/build.yml` builds Windows, Linux and macOS (arm64) on every
+push and uploads them as artifacts. That is the easiest way to get a Mac build
+without owning a Mac.
+
+The test job runs under `xvfb`: importing Ebitengine runs an `init()` that
+opens the display, so even tests that never draw a frame need an X server on a
+headless runner. That job also regenerates the icons and fails if the committed
+bundles have gone stale.
 
 ### Command-line flags
 

@@ -34,6 +34,20 @@ jobs:
       - name: Test
         run: xvfb-run -a go test ./...
 
+      # The icon bundles and the Windows .syso are committed so a plain
+      # `go build` produces a properly branded binary. Regenerate them here
+      # and fail if anything moved, which catches art changes that were not
+      # followed by `go run ./cmd/genicon .`. Done once, here, rather than in
+      # every build job — genicon also imports Ebitengine, so it needs xvfb.
+      - name: Check generated icons are up to date
+        run: |
+          xvfb-run -a go run ./cmd/genicon .
+          if ! git diff --quiet -- assets cmd/superdario; then
+            echo "::error::Generated icon files are stale. Run 'go run ./cmd/genicon .' and commit the result."
+            git --no-pager diff --stat -- assets cmd/superdario
+            exit 1
+          fi
+
   build:
     needs: test
     strategy:
@@ -52,18 +66,13 @@ jobs:
             cgo: 1
             out: SuperDario
             name: linux-amd64
+          # Apple Silicon only. Intel Macs are not built for.
           - os: macos-latest
             goos: darwin
             goarch: arm64
             cgo: 1
             out: SuperDario
             name: macos-arm64
-          - os: macos-13
-            goos: darwin
-            goarch: amd64
-            cgo: 1
-            out: SuperDario
-            name: macos-amd64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -77,12 +86,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgl1-mesa-dev xorg-dev libasound2-dev
 
-      # Regenerate the icon bundles and the Windows resource object so the
-      # committed .syso can never drift from the art.
-      - name: Generate icons
-        shell: bash
-        run: go run ./cmd/genicon .
-
+      # No icon generation here: the bundles and the Windows .syso are
+      # committed, and the test job verifies they are current.
       - name: Build
         shell: bash
         env:

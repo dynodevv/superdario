@@ -44,16 +44,16 @@ linux:
 	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
 		go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST)/linux-amd64/SuperDario $(PKG)
 
-# --- macOS (needs cgo + Xcode command line tools; build on macOS) ----------
+# --- macOS, Apple Silicon only (needs cgo + Xcode command line tools) ------
 darwin:
 	mkdir -p $(DIST)/darwin
 	CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 \
-		go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST)/darwin/SuperDario-arm64 $(PKG)
-	CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
-		go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST)/darwin/SuperDario-amd64 $(PKG)
+		go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST)/darwin/SuperDario $(PKG)
 
-# A universal binary plus a double-clickable .app bundle.
-darwin-universal: darwin
-	lipo -create -output $(DIST)/darwin/SuperDario \
-		$(DIST)/darwin/SuperDario-arm64 $(DIST)/darwin/SuperDario-amd64
+# A double-clickable .app bundle around it.
+darwin-app: darwin
 	./scripts/make-app-bundle.sh $(DIST)/darwin/SuperDario $(DIST)/darwin/SuperDario.app $(VERSION)
+
+# --- icons (regenerate after changing internal/gfx/icon.go) ----------------
+icons:
+	go run ./cmd/genicon .
