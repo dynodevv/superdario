@@ -1,6 +1,8 @@
 package game
 
 import (
+	"strings"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"superdario/internal/world"
@@ -24,6 +26,10 @@ type Pad struct {
 	// true when the last input came from a gamepad, so prompts can say
 	// "A" instead of "ENTER"
 	LastWasPad bool
+	sawPad     bool
+
+	// non-nil pins the prompt vocabulary; see ForcePromptDevice
+	forcePrompt *bool
 }
 
 func NewPad() *Pad { return &Pad{Binds: DefaultBindings()} }
@@ -39,7 +45,19 @@ func (p *Pad) refresh() {
 			break
 		}
 	}
-	// track which device the player is actually using
+	// Plugging a controller in hands the prompts over to it straight away,
+	// rather than waiting for the player to press something to find out the
+	// game knows it is there.
+	if p.hasPad && !p.sawPad {
+		p.sawPad = true
+		p.LastWasPad = true
+	}
+	if !p.hasPad {
+		p.sawPad = false
+		p.LastWasPad = false
+	}
+
+	// after that, follow whichever device was used last
 	if p.hasPad && len(inpututil.AppendJustPressedGamepadButtons(p.active, nil)) > 0 {
 		p.LastWasPad = true
 	}
@@ -249,18 +267,55 @@ func (p *Pad) Sticks() (lx, ly, rx, ry float64) {
 	return
 }
 
-// ConfirmLabel is the prompt text for "accept", matching the device in use.
-func (p *Pad) ConfirmLabel() string {
-	if p.LastWasPad {
-		return p.Binds.PadsLabel(ActConfirm)
+// ---------------------------------------------------------------------------
+// On-screen prompts
+//
+// Every hint in the game is built from these, so a connected controller is
+// told about in its own vocabulary — "A JUMP" rather than "Z OR SPACE JUMP".
+// ---------------------------------------------------------------------------
+
+// UsingPad reports whether prompts should be written in gamepad terms.
+func (p *Pad) UsingPad() bool {
+	if p.forcePrompt != nil {
+		return *p.forcePrompt
 	}
-	return p.Binds.KeysLabel(ActConfirm)
+	return p.hasPad && p.LastWasPad
 }
 
-// BackLabel is the prompt text for "cancel".
-func (p *Pad) BackLabel() string {
-	if p.LastWasPad {
-		return p.Binds.PadsLabel(ActBack)
+// ForcePromptDevice pins the prompt vocabulary regardless of what is actually
+// plugged in, so the screenshot tool can capture both variants on a machine
+// with no controller. Input handling is untouched — this only changes what the
+// hints say — and it survives refresh(), unlike poking hasPad directly.
+func (p *Pad) ForcePromptDevice(pad bool) { p.forcePrompt = &pad }
+
+// Label is the binding to advertise for an action on the device in use.
+func (p *Pad) Label(a Action) string {
+	if p.UsingPad() {
+		return p.Binds.PadsLabel(a)
 	}
-	return p.Binds.KeysLabel(ActBack)
+	return p.Binds.KeysLabel(a)
 }
+
+// Prompt renders "<binding> <what>", e.g. "A JUMP" or "SPACE / Z JUMP".
+func (p *Pad) Prompt(a Action, what string) string {
+	return p.Label(a) + " " + what
+}
+
+// MoveLabel names the directional control, which is not a single binding.
+func (p *Pad) MoveLabel() string {
+	if p.UsingPad() {
+		return "D-PAD / STICK"
+	}
+	return "ARROWS / WASD"
+}
+
+// Hints joins several prompts into one footer line.
+func (p *Pad) Hints(parts ...string) string {
+	return strings.Join(parts, "   ")
+}
+
+// ConfirmLabel is the prompt text for "accept", matching the device in use.
+func (p *Pad) ConfirmLabel() string { return p.Label(ActConfirm) }
+
+// BackLabel is the prompt text for "cancel".
+func (p *Pad) BackLabel() string { return p.Label(ActBack) }

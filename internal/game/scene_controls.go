@@ -207,9 +207,9 @@ func (s *ControlsScene) Draw(g *Game, dst *ebiten.Image) {
 		gfx.Panel(dst, float64(core.ScreenW)/2-w/2, 236, w, 14, gfx.ColInkDeep, gfx.ColRed)
 		gfx.TextCenter(dst, s.conflict, core.ScreenW/2, 240, gfx.ColCream, 1)
 	}
-	hint := "UP/DOWN SELECT   LEFT/RIGHT TAB   ENTER REBIND   ESC BACK"
+	hint := g.Pad.Hints("UP/DOWN SELECT", "LEFT/RIGHT TAB", g.Pad.Prompt(ActConfirm, "REBIND"), g.Pad.Prompt(ActBack, "BACK"))
 	if s.capturing {
-		hint = "PRESS A NEW INPUT...   ESC CANCELS"
+		hint = "PRESS A NEW INPUT...   ESC OR B CANCELS"
 	}
 	gfx.TextCenter(dst, hint, core.ScreenW/2, 258, gfx.Alpha(gfx.ColCream, 0.45), 1)
 }

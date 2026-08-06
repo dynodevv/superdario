@@ -224,7 +224,7 @@ func (s *PlayScene) Draw(g *Game, dst *ebiten.Image) {
 		for i, line := range gfx.WrapText(s.buildErr.Error(), core.ScreenW-60, 1) {
 			gfx.TextCenter(dst, line, core.ScreenW/2, 140+i*10, gfx.Alpha(gfx.ColCream, 0.8), 1)
 		}
-		gfx.TextCenter(dst, "PRESS ENTER TO RETURN TO THE MAP", core.ScreenW/2, 200, gfx.ColGoldLight, 1)
+		gfx.TextCenter(dst, "PRESS "+g.Pad.ConfirmLabel()+" TO RETURN TO THE MAP", core.ScreenW/2, 200, gfx.ColGoldLight, 1)
 		return
 	}
 
@@ -242,7 +242,7 @@ func (s *PlayScene) Draw(g *Game, dst *ebiten.Image) {
 		s.drawTitleCard(dst)
 	}
 	if s.paused {
-		s.drawPause(dst)
+		s.drawPause(g, dst)
 	}
 	if s.w.Status == world.StatusCleared {
 		s.drawClearBanner(dst)
@@ -371,7 +371,7 @@ func (s *PlayScene) drawClearBanner(dst *ebiten.Image) {
 	}
 }
 
-func (s *PlayScene) drawPause(dst *ebiten.Image) {
+func (s *PlayScene) drawPause(g *Game, dst *ebiten.Image) {
 	gfx.FillRectF(dst, 0, 0, core.ScreenW, core.ScreenH, gfx.Alpha(gfx.ColInkDeep, 0.75))
 	gfx.Panel(dst, 140, 76, 200, 118, gfx.ColSlate, gfx.ColCoral)
 	gfx.TextCenterOutline(dst, "PAUSED", core.ScreenW/2, 86, gfx.ColCream, gfx.ColInkDeep, 2)
@@ -386,5 +386,5 @@ func (s *PlayScene) drawPause(dst *ebiten.Image) {
 		}
 		gfx.Text(dst, item, 170, y, col, 1)
 	}
-	gfx.TextCenter(dst, "ESC RESUME", core.ScreenW/2, 200, gfx.Alpha(gfx.ColCream, 0.4), 1)
+	gfx.TextCenter(dst, g.Pad.Prompt(ActPause, "RESUME"), core.ScreenW/2, 200, gfx.Alpha(gfx.ColCream, 0.4), 1)
 }

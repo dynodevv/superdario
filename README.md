@@ -60,6 +60,11 @@ Everything above is **rebindable** in **Options → Controls**, which has a
 keyboard tab and a gamepad tab. The gamepad tab draws a controller that lights
 up as you press buttons, so you can check a pad is working before you play.
 
+Every on-screen hint follows the device you are actually using and the bindings
+you actually have — plug a controller in and the title screen changes from
+`SPACE / Z JUMP` to `A JUMP` on the spot, and rebinding updates the hints
+immediately.
+
 Hold **run** while jumping to clear the wider gaps — a running jump goes
 noticeably higher. Releasing jump early cuts the arc short.
 

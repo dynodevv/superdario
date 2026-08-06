@@ -132,7 +132,7 @@ func (s *FileScene) Draw(g *Game, dst *ebiten.Image) {
 				gfx.DrawSprite(dst, gfx.ImgStarIcon, core.ScreenW-64, y+20, gfx.SpriteOpt{})
 			}
 			if focused {
-				gfx.Text(dst, "X: ERASE", core.ScreenW-108, int(y)+38, gfx.Alpha(gfx.ColRed, 0.9), 1)
+				gfx.Text(dst, g.Pad.Label(ActRun)+": ERASE", core.ScreenW-118, int(y)+38, gfx.Alpha(gfx.ColRed, 0.9), 1)
 			}
 		}
 		if focused && (s.t/16)%2 == 0 {
@@ -148,14 +148,21 @@ func (s *FileScene) Draw(g *Game, dst *ebiten.Image) {
 		}
 	}
 	gfx.TextCenterShadow(dst, "BACK", core.ScreenW/2, 228, backCol, gfx.ColInkDeep, 2)
-	gfx.TextCenter(dst, "ENTER SELECT     ESC BACK", core.ScreenW/2, 256, gfx.Alpha(gfx.ColCream, 0.45), 1)
+	gfx.TextCenter(dst, g.Pad.Hints(
+		g.Pad.Prompt(ActConfirm, "SELECT"),
+		g.Pad.Prompt(ActRun, "ERASE"),
+		g.Pad.Prompt(ActBack, "BACK"),
+	), core.ScreenW/2, 256, gfx.Alpha(gfx.ColCream, 0.45), 1)
 
 	if s.erasing {
 		gfx.FillRectF(dst, 0, 0, core.ScreenW, core.ScreenH, gfx.Alpha(gfx.ColInkDeep, 0.8))
 		gfx.Panel(dst, 90, 100, 300, 70, gfx.ColSlate, gfx.ColRed)
 		gfx.TextCenter(dst, fmt.Sprintf("ERASE FILE %d?", s.sel+1), core.ScreenW/2, 114, gfx.ColCream, 2)
 		gfx.TextCenter(dst, "THIS CANNOT BE UNDONE.", core.ScreenW/2, 136, gfx.Alpha(gfx.ColCream, 0.75), 1)
-		gfx.TextCenter(dst, "ENTER: ERASE      ESC: KEEP", core.ScreenW/2, 152, gfx.ColGoldLight, 1)
+		gfx.TextCenter(dst, g.Pad.Hints(
+			g.Pad.Prompt(ActConfirm, "ERASE"),
+			g.Pad.Prompt(ActBack, "KEEP"),
+		), core.ScreenW/2, 152, gfx.ColGoldLight, 1)
 	}
 }
 

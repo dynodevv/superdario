@@ -241,7 +241,11 @@ func (s *MapScene) Draw(g *Game, dst *ebiten.Image) {
 		gfx.Text(dst, "LOCKED", core.ScreenW-104, 216, gfx.Alpha(gfx.ColRed, 0.9), 1)
 	}
 
-	gfx.TextCenter(dst, "ENTER PLAY   ESC TITLE   P OPTIONS", core.ScreenW/2, 262, gfx.Alpha(gfx.ColCream, 0.4), 1)
+	gfx.TextCenter(dst, g.Pad.Hints(
+		g.Pad.Prompt(ActConfirm, "PLAY"),
+		g.Pad.Prompt(ActBack, "TITLE"),
+		g.Pad.Prompt(ActOptions, "OPTIONS"),
+	), core.ScreenW/2, 262, gfx.Alpha(gfx.ColCream, 0.4), 1)
 }
 
 // fmtTicks renders a tick count as M:SS.

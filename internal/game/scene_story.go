@@ -143,7 +143,10 @@ func (s *StoryScene) Draw(g *Game, dst *ebiten.Image) {
 	if s.chars >= s.totalChars() && (s.t/20)%2 == 0 {
 		gfx.TextShadow(dst, ">", core.ScreenW-46, int(boxY+boxH)-15, gfx.ColGoldLight, gfx.ColInkDeep, 2)
 	}
-	gfx.Text(dst, "ENTER: NEXT    ESC: SKIP", 30, promptY, gfx.Alpha(gfx.ColCream, 0.40), 1)
+	gfx.Text(dst, g.Pad.Hints(
+		g.Pad.Prompt(ActConfirm, "NEXT"),
+		g.Pad.Prompt(ActBack, "SKIP"),
+	), 30, promptY, gfx.Alpha(gfx.ColCream, 0.40), 1)
 }
 
 // drawPanelArt renders the simple illustrations used by the cutscenes.

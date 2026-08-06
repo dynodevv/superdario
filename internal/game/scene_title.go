@@ -96,7 +96,12 @@ func (s *TitleScene) Draw(g *Game, dst *ebiten.Image) {
 		gfx.TextCenterShadow(dst, item, core.ScreenW/2, y, col, gfx.ColInkDeep, 2)
 	}
 
-	gfx.TextCenter(dst, "ARROWS / WASD MOVE   Z OR SPACE JUMP   X OR SHIFT RUN & THROW", core.ScreenW/2, 244, gfx.Alpha(gfx.ColCream, 0.55), 1)
+	hint := g.Pad.Hints(
+		g.Pad.MoveLabel()+" MOVE",
+		g.Pad.Prompt(ActJump, "JUMP"),
+		g.Pad.Prompt(ActRun, "RUN & THROW"),
+	)
+	gfx.TextCenter(dst, hint, core.ScreenW/2, 244, gfx.Alpha(gfx.ColCream, 0.55), 1)
 	gfx.TextCenter(dst, "PARODY. AN UNOFFICIAL FAN GAME.", core.ScreenW/2, 253, gfx.Alpha(gfx.ColCoral, 0.75), 1)
 	gfx.TextCenter(dst, "NOT AFFILIATED WITH ANY REAL COMPANY OR PERSON. ALL CHARACTERS FICTIONAL.",
 		core.ScreenW/2, 262, gfx.Alpha(gfx.ColCream, 0.36), 1)

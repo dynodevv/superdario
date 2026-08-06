@@ -95,7 +95,7 @@ func (s *ResultsScene) Draw(g *Game, dst *ebiten.Image) {
 			gfx.SpriteOpt{ScaleX: 2, ScaleY: 2})
 	}
 	if (s.t/22)%2 == 0 {
-		gfx.TextCenter(dst, "PRESS ENTER", core.ScreenW/2, 244, gfx.ColGoldLight, 1)
+		gfx.TextCenter(dst, "PRESS "+g.Pad.ConfirmLabel(), core.ScreenW/2, 244, gfx.ColGoldLight, 1)
 	}
 }
 
@@ -311,7 +311,7 @@ func (s *OptionsScene) Draw(g *Game, dst *ebiten.Image) {
 		}
 	}
 
-	gfx.TextCenter(dst, "LEFT/RIGHT ADJUST     ENTER SELECT     ESC BACK", core.ScreenW/2, 222, gfx.Alpha(gfx.ColCream, 0.45), 1)
+	gfx.TextCenter(dst, g.Pad.Hints("LEFT/RIGHT ADJUST", g.Pad.Prompt(ActConfirm, "SELECT"), g.Pad.Prompt(ActBack, "BACK")), core.ScreenW/2, 222, gfx.Alpha(gfx.ColCream, 0.45), 1)
 	p, err := savePathForDisplay()
 	if err == nil {
 		gfx.TextCenter(dst, "SAVE: "+p, core.ScreenW/2, 244, gfx.Alpha(gfx.ColCream, 0.28), 1)
@@ -451,5 +451,5 @@ func (s *CreditsScene) Draw(g *Game, dst *ebiten.Image) {
 		gfx.DrawSprite(dst, gfx.ImgModel[m][(s.t/14+m)%2], x, y, gfx.SpriteOpt{Alpha: 0.55})
 	}
 
-	gfx.TextCenter(dst, "HOLD X TO SPEED UP     ESC TO EXIT", core.ScreenW/2, 262, gfx.Alpha(gfx.ColCream, 0.3), 1)
+	gfx.TextCenter(dst, g.Pad.Hints("HOLD "+g.Pad.Label(ActRun)+" TO SPEED UP", g.Pad.Prompt(ActBack, "TO EXIT")), core.ScreenW/2, 262, gfx.Alpha(gfx.ColCream, 0.3), 1)
 }

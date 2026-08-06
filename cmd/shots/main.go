@@ -115,6 +115,10 @@ func main() {
 
 	s := &shooter{g: g, steps: []step{
 		{name: "01_title", frames: 90},
+		{name: "01b_title_gamepad", frames: 40, setup: func(g *game.Game) {
+			g.Pad.ForcePromptDevice(true)
+			g.GoNow(&game.TitleScene{})
+		}},
 		{name: "02_files", frames: 60, setup: func(g *game.Game) { g.GoNow(&game.FileScene{}) }},
 		{name: "03_story", frames: 300, setup: func(g *game.Game) {
 			g.Run.SlotIdx = 0
