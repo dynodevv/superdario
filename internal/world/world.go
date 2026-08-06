@@ -778,10 +778,7 @@ func (w *World) Respawn() {
 	w.Level.RefillQuestionBlocks()
 	w.brickCoins = map[int]int{}
 	w.resetPlatforms()
-	// wake everything back up
-	for _, e := range w.Enemies {
-		e.active = false
-	}
+	w.resetEnemies()
 	w.snapCamera()
 	sfx.PlayMusic(sfx.MusicFor(def.World))
 }
@@ -804,6 +801,24 @@ func (w *World) resetPlatforms() {
 	}
 	for _, s := range w.Springs {
 		s.compress = 0
+	}
+}
+
+// resetEnemies rebuilds every enemy from the level's spawn list.
+//
+// Stomped and flipped enemies are reaped out of w.Enemies, so simply waking the
+// survivors back up left a retry with only whatever Dario had not yet killed —
+// walk back through a cleared stretch and it was empty. Rebuilding also drops
+// shells and the crawlers that climb out of them, and puts the survivors back
+// at their spawn points facing their original way, so a retry plays out the
+// same as the first attempt.
+func (w *World) resetEnemies() {
+	w.Enemies = w.Enemies[:0]
+	for _, s := range w.Level.Spawns {
+		switch s.Kind {
+		case SpawnDistill, SpawnCrawler, SpawnSpike, SpawnFlyer, SpawnLeech, SpawnPlant:
+			w.spawn(s)
+		}
 	}
 }
 

@@ -241,6 +241,45 @@ func TestRespawnRestoresPlatforms(t *testing.T) {
 	}
 }
 
+// Enemies must come back when Dario does. Killed ones are reaped out of the
+// enemy list, so without a reset a retry only faces whatever survived the last
+// attempt — walk back through a stretch you had already cleared and it is
+// empty, and the checkpoint run gets easier every time you die.
+func TestRespawnRestoresEnemies(t *testing.T) {
+	for w := range Levels {
+		for l := range Levels[w] {
+			def := Levels[w][l]
+			wd, err := NewWorld(def, 9, 0, 0, core.PowerScaled)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := len(wd.Enemies)
+			if want == 0 {
+				continue
+			}
+
+			// wipe out every enemy on the stage
+			for _, e := range wd.Enemies {
+				e.Alive = false
+			}
+			wd.reap()
+
+			wd.Respawn()
+			if got := len(wd.Enemies); got != want {
+				t.Errorf("%d-%d (%s): %d enemies after respawn, want %d",
+					w+1, l+1, def.Name, got, want)
+				continue
+			}
+			for _, e := range wd.Enemies {
+				if !e.Alive || e.active || e.squashT > 0 || e.flipping {
+					t.Errorf("%d-%d (%s): enemy restored in a spent state", w+1, l+1, def.Name)
+					break
+				}
+			}
+		}
+	}
+}
+
 // A stage that depends on platforms to cross a hazard must still have them
 // after a death, or the retry is unwinnable.
 func TestNoStageBecomesUnwinnableAfterDeath(t *testing.T) {
