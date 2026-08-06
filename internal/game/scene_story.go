@@ -98,8 +98,20 @@ func (s *StoryScene) Draw(g *Game, dst *ebiten.Image) {
 	drawPanelArt(dst, p.Art, s.cut.Model, s.t)
 
 	// --- caption box ----------------------------------------------------
-	boxY := 172.0
-	gfx.Panel(dst, 24, boxY, core.ScreenW-48, 78, gfx.Alpha(gfx.ColInkDeep, 0.92), gfx.ColCoral)
+	// Sized to its content and anchored above the prompt row. A fixed height
+	// clipped the longest panels, whose last line ran into the prompt.
+	const (
+		lineH     = 11
+		promptY   = 259
+		boxTopMin = 88.0
+	)
+	boxH := float64(13 + len(p.Lines)*lineH)
+	boxY := float64(promptY-5) - boxH
+	if boxY < boxTopMin {
+		boxY = boxTopMin
+		boxH = float64(promptY-5) - boxTopMin
+	}
+	gfx.Panel(dst, 24, boxY, core.ScreenW-48, boxH, gfx.Alpha(gfx.ColInkDeep, 0.92), gfx.ColCoral)
 
 	if name := speakerName(p.Speak); name != "" {
 		nameCol := gfx.ColGoldLight
@@ -124,14 +136,14 @@ func (s *StoryScene) Draw(g *Game, dst *ebiten.Image) {
 			shown = line[:left]
 		}
 		left -= len(line)
-		gfx.Text(dst, shown, 34, int(boxY)+8+i*11, gfx.ColCream, 1)
+		gfx.Text(dst, shown, 34, int(boxY)+7+i*lineH, gfx.ColCream, 1)
 	}
 
 	// --- prompt ---------------------------------------------------------
 	if s.chars >= s.totalChars() && (s.t/20)%2 == 0 {
-		gfx.TextShadow(dst, ">", core.ScreenW-46, int(boxY)+62, gfx.ColGoldLight, gfx.ColInkDeep, 2)
+		gfx.TextShadow(dst, ">", core.ScreenW-46, int(boxY+boxH)-15, gfx.ColGoldLight, gfx.ColInkDeep, 2)
 	}
-	gfx.Text(dst, "ENTER: NEXT    ESC: SKIP", 30, 256, gfx.Alpha(gfx.ColCream, 0.40), 1)
+	gfx.Text(dst, "ENTER: NEXT    ESC: SKIP", 30, promptY, gfx.Alpha(gfx.ColCream, 0.40), 1)
 }
 
 // drawPanelArt renders the simple illustrations used by the cutscenes.

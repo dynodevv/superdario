@@ -120,6 +120,10 @@ func main() {
 			g.Run.SlotIdx = 0
 			g.GoNow(game.NewStoryScene(game.Prologue, nil))
 		}},
+		// the longest caption in the game: seven lines
+		{name: "03b_story_long", frames: 400, setup: func(g *game.Game) {
+			g.GoNow(game.NewStoryScene(game.Interludes[3], nil))
+		}},
 		{name: "04_map", frames: 60, setup: func(g *game.Game) {
 			sl := g.Slot()
 			sl.Used = true

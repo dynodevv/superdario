@@ -205,7 +205,29 @@ func (e *Enemy) flyerUpdate(w *World) {
 	if e.HitLeft || e.HitRight {
 		e.Facing = -e.Facing
 	}
-	e.Y = e.homeY + math.Sin(e.phase)*26
+	e.bobTo(l, e.homeY+math.Sin(e.phase)*26)
+}
+
+// bobTo moves toward a hover height through the collision system instead of
+// assigning Y outright. Flying enemies that spawn near the floor used to drive
+// their whole sine amplitude straight into the terrain and sit half-buried in
+// it; now they skim the surface and rise back out.
+func (e *Enemy) bobTo(l *Level, targetY float64) {
+	dy := targetY - e.Y
+	if dy == 0 {
+		return
+	}
+	// Never step more than a tile per frame. MoveY only inspects the row the
+	// body ends up in, so a bigger jump tunnels through everything between —
+	// a blocked flyer whose target kept sinking would build up a step large
+	// enough to pass straight through the seabed and snap into the rock below.
+	const maxStep = TS - 1
+	if dy > maxStep {
+		dy = maxStep
+	} else if dy < -maxStep {
+		dy = -maxStep
+	}
+	e.MoveY(l, dy, false)
 }
 
 func (e *Enemy) leechUpdate(w *World) {
@@ -217,8 +239,8 @@ func (e *Enemy) leechUpdate(w *World) {
 	if math.Abs(e.VX) > 0.55 {
 		e.VX = sign(e.VX) * 0.55
 	}
-	e.X += e.VX
-	e.Y = e.homeY + math.Sin(e.phase)*18
+	e.MoveX(l, e.VX)
+	e.bobTo(l, e.homeY+math.Sin(e.phase)*18)
 	e.Facing = int(sign(e.VX))
 	if e.Facing == 0 {
 		e.Facing = core.Right

@@ -38,11 +38,15 @@ type Level struct {
 	HasGoal        bool
 	BossGateX      float64
 	HasBossGate    bool
+
+	// Row of the water surface on a flooded stage, or -1. Used to paint water
+	// behind tiles whose art has gaps in it.
+	waterSurface int
 }
 
 // BuildLevel assembles a level from its chunk list.
 func BuildLevel(def LevelDef) (*Level, error) {
-	l := &Level{Def: def, H: core.LevelH}
+	l := &Level{Def: def, H: core.LevelH, waterSurface: -1}
 
 	// measure
 	for _, name := range def.Chunks {
@@ -143,6 +147,7 @@ func (l *Level) floodUnderwater() {
 	if surface < 0 {
 		return // no water in this level after all
 	}
+	l.waterSurface = surface
 	for ty := surface; ty < l.H; ty++ {
 		for tx := 0; tx < l.W; tx++ {
 			i := ty*l.W + tx
@@ -371,6 +376,15 @@ func (l *Level) Draw(dst *ebiten.Image, camX, camY float64, tick int) {
 			}
 			px := float64(tx*TS) - camX
 			py := float64(ty*TS) - camY + l.BumpOffset(tx, ty)
+
+			// Underwater, tiles with gaps in their art need water painted
+			// behind them, or the gaps show the raw backdrop and the seabed
+			// looks like it is sitting in a void.
+			if l.waterSurface >= 0 && ty >= l.waterSurface && t.SeeThrough() {
+				op := &ebiten.DrawImageOptions{}
+				op.GeoM.Translate(math.Floor(float64(tx*TS)-camX), math.Floor(float64(ty*TS)-camY))
+				dst.DrawImage(ts.Liquid[liqFrame], op)
+			}
 
 			var img *ebiten.Image
 			switch t {

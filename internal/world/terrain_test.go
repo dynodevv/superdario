@@ -134,6 +134,63 @@ func TestNoTokensTrappedUnderPlatforms(t *testing.T) {
 	}
 }
 
+// Enemies must not end up buried in the terrain. Flying enemies used to set
+// their hover height by assigning Y outright, bypassing collision entirely, so
+// one spawned near the floor drove its whole sine amplitude into the seabed
+// and sat half-submerged in the rock.
+func TestEnemiesStayOutOfTerrain(t *testing.T) {
+	for w := range Levels {
+		for l := range Levels[w] {
+			def := Levels[w][l]
+			wd, err := NewWorld(def, 99, 0, 0, core.PowerScaled)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for i := 0; i < 1800; i++ {
+				wd.Update(botInput(i))
+				if wd.Status == StatusDead || wd.Status == StatusTimeUp {
+					wd.Respawn()
+					continue
+				}
+				for _, e := range wd.Enemies {
+					// Plants live inside their pipe by design; anything
+					// dying or knocked off the screen is on its way out.
+					if !e.Alive || !e.active || e.Kind == EnPlant ||
+						e.flipping || e.squashT > 0 {
+						continue
+					}
+					tx := ifloor(e.CX() / TS)
+					ty := ifloor(e.CY() / TS)
+					if wd.Level.At(tx, ty).Solid() {
+						t.Fatalf("%d-%d (%s) tick %d: %s is inside a solid tile at (%d,%d)",
+							w+1, l+1, def.Name, i, enemyName(e.Kind), tx, ty)
+					}
+				}
+			}
+		}
+	}
+}
+
+func enemyName(k EnemyKind) string {
+	switch k {
+	case EnDistill:
+		return "DistillBot"
+	case EnCrawler:
+		return "Crawler"
+	case EnShell:
+		return "Shell"
+	case EnSpikeBot:
+		return "SpikeBot"
+	case EnFlyer:
+		return "Flyer"
+	case EnLeech:
+		return "Leech"
+	case EnPlant:
+		return "DataPipe"
+	}
+	return "enemy"
+}
+
 // Swimming has to actually climb. Holding the swim button from the seabed must
 // carry Dario a useful distance upward — a stroke that lifts less than a tile
 // makes the whole world feel broken.

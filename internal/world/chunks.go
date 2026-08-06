@@ -608,16 +608,18 @@ var chunks = map[string]Chunk{
 		"XXXXXXXXXXXXXX",
 	}},
 
+	// The flyers patrol high water: down at the seabed their bob just ground
+	// against the floor.
 	"water_kelp": {[]string{
 		"~~~~~~~~~~~~~~",
 		"______________",
-		"______________",
+		"_f__________f_",
 		"______________",
 		"___bb_____bb__",
 		"___bb_____bb__",
 		"___bb_ooo_bb__",
 		"___bb_____bb__",
-		"__f________f__",
+		"______________",
 		"##############",
 		"XXXXXXXXXXXXXX",
 		"XXXXXXXXXXXXXX",

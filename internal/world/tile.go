@@ -82,6 +82,19 @@ func (t Tile) Climbable() bool { return t == TLadder }
 // Decorative tiles are drawn but never interact.
 func (t Tile) Decor() bool { return t >= TDeco0 && t <= TDeco3 }
 
+// SeeThrough reports tiles whose art does not fill its whole cell — spikes
+// have gaps between the points, a platform is a thin plank, kelp is a few
+// strands. Underwater those gaps must have water painted behind them or they
+// show the raw backdrop and the seabed looks like it is sitting in a void.
+func (t Tile) SeeThrough() bool {
+	switch t {
+	case TSpike, TSpikeDown, TPlatform, TCloud, TLadder,
+		TDeco0, TDeco1, TDeco2, TDeco3:
+		return true
+	}
+	return false
+}
+
 // runeToTile is the level-authoring alphabet. Chunks are written as ASCII art
 // using these characters; see chunks.go.
 var runeToTile = map[byte]Tile{
