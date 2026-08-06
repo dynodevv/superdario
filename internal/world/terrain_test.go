@@ -191,6 +191,87 @@ func enemyName(k EnemyKind) string {
 	return "enemy"
 }
 
+// Falling platforms must come back when Dario does. They drop away once
+// stepped on and are reaped when they leave the screen, so without a reset a
+// death after triggering them leaves the gap they spanned uncrossable —
+// castle_lavarun is three of them over lava, which made the stage unwinnable
+// until you quit out to the map.
+func TestRespawnRestoresPlatforms(t *testing.T) {
+	for w := range Levels {
+		for l := range Levels[w] {
+			def := Levels[w][l]
+			wd, err := NewWorld(def, 9, 0, 0, core.PowerScaled)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := len(wd.Platforms)
+			if want == 0 {
+				continue
+			}
+
+			// trigger every falling platform and let them all drop away
+			for _, p := range wd.Platforms {
+				p.Trigger()
+			}
+			for i := 0; i < 900; i++ {
+				wd.Update(Input{})
+				if wd.Status == StatusDead || wd.Status == StatusTimeUp {
+					break
+				}
+			}
+
+			wd.Respawn()
+			if got := len(wd.Platforms); got != want {
+				t.Errorf("%d-%d (%s): %d platforms after respawn, want %d",
+					w+1, l+1, def.Name, got, want)
+				continue
+			}
+			for _, p := range wd.Platforms {
+				if !p.Alive {
+					t.Errorf("%d-%d (%s): platform restored dead", w+1, l+1, def.Name)
+					break
+				}
+				if p.Kind == PlatFall && (p.fallT != 0 || p.VY != 0) {
+					t.Errorf("%d-%d (%s): falling platform restored mid-drop (fallT=%d vy=%.2f)",
+						w+1, l+1, def.Name, p.fallT, p.VY)
+					break
+				}
+			}
+		}
+	}
+}
+
+// A stage that depends on platforms to cross a hazard must still have them
+// after a death, or the retry is unwinnable.
+func TestNoStageBecomesUnwinnableAfterDeath(t *testing.T) {
+	for w := range Levels {
+		for l := range Levels[w] {
+			def := Levels[w][l]
+			wd, err := NewWorld(def, 9, 0, 0, core.PowerScaled)
+			if err != nil {
+				t.Fatal(err)
+			}
+			before := len(wd.Platforms)
+
+			// play for a while, dying and respawning as it goes
+			for i := 0; i < 3000; i++ {
+				wd.Update(botInput(i))
+				if wd.Status == StatusDead || wd.Status == StatusTimeUp {
+					wd.Respawn()
+				}
+				if wd.Status == StatusCleared {
+					break
+				}
+			}
+			wd.Respawn()
+			if got := len(wd.Platforms); got != before {
+				t.Errorf("%d-%d (%s): started with %d platforms, has %d after a run with deaths",
+					w+1, l+1, def.Name, before, got)
+			}
+		}
+	}
+}
+
 // Swimming has to actually climb. Holding the swim button from the seabed must
 // carry Dario a useful distance upward — a stroke that lifts less than a tile
 // makes the whole world feel broken.

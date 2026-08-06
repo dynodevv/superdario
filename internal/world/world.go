@@ -777,12 +777,34 @@ func (w *World) Respawn() {
 	// opened — otherwise a death at the boss leaves him with no way to re-arm.
 	w.Level.RefillQuestionBlocks()
 	w.brickCoins = map[int]int{}
+	w.resetPlatforms()
 	// wake everything back up
 	for _, e := range w.Enemies {
 		e.active = false
 	}
 	w.snapCamera()
 	sfx.PlayMusic(sfx.MusicFor(def.World))
+}
+
+// resetPlatforms rebuilds every platform from the level's spawn list.
+//
+// A falling platform drops away once stepped on and is reaped when it leaves
+// the screen. Without this, dying after triggering them left the gap they
+// spanned with nothing to cross it — and castle_lavarun is three of them over
+// a lava pit, so the stage became unwinnable until you quit out to the map.
+// Moving platforms are rebuilt too, which puts their phase back to the start
+// so a retry plays out the same way as the first attempt.
+func (w *World) resetPlatforms() {
+	w.Platforms = w.Platforms[:0]
+	for _, s := range w.Level.Spawns {
+		switch s.Kind {
+		case SpawnPlatH, SpawnPlatV, SpawnFalling:
+			w.spawn(s)
+		}
+	}
+	for _, s := range w.Springs {
+		s.compress = 0
+	}
 }
 
 // reap drops dead entities so the slices do not grow without bound.
