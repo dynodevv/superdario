@@ -36,14 +36,6 @@ exist until the moment you run the game.
 
 ---
 
-## Playing
-
-```bash
-go run ./cmd/superdario
-```
-
-Or run `dist/windows-amd64/SuperDario.exe`.
-
 ### Default controls
 
 | Action | Keyboard | Xbox pad |
