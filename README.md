@@ -27,7 +27,7 @@
 
 A 2D platformer written in Go with [Ebitengine](https://ebitengine.org).
 
-Four (fictional) Claude models — **Haiku**, **Sonnet**, **Opus** and **Fable** —
+Four (fictional) models — **Haiku**, **Sonnet**, **Opus** and **Fable** —
 have been copied, crated and shipped out to five rival labs calling themselves
 the **Distillation Syndicate**. Dario takes the stairs.
 
