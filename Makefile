@@ -11,7 +11,7 @@ LDFLAGS := -s -w -X main.Version=$(VERSION)
 LDFLAGS_WIN := -s -w -H=windowsgui -X main.Version=$(VERSION)
 DIST    := dist
 
-.PHONY: all run test vet fmt clean windows linux darwin darwin-universal check
+.PHONY: all run test vet fmt clean windows linux darwin darwin-universal web check
 
 all: test windows
 
@@ -53,6 +53,12 @@ darwin:
 # A double-clickable .app bundle around it.
 darwin-app: darwin
 	./scripts/make-app-bundle.sh $(DIST)/darwin/SuperDario $(DIST)/darwin/SuperDario.app $(VERSION)
+
+# --- Web (one self-contained HTML file; pure Go js/wasm) -------------------
+# The build tool itself must run on the host, not for the js/wasm target, so
+# strip any cross-compilation environment the caller might have exported.
+web:
+	env -u GOOS -u GOARCH -u CGO_ENABLED go run ./cmd/buildweb -version $(VERSION)
 
 # --- icons (regenerate after changing internal/gfx/icon.go) ----------------
 icons:

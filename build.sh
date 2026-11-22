@@ -3,7 +3,8 @@
 #
 # Ebitengine needs cgo on both platforms, so run this on the machine you are
 # building for. The Windows executable is pure Go and cross-compiles from here
-# too (./build.sh windows).
+# too (./build.sh windows). The web target (./build.sh web) is pure Go as well
+# and produces one self-contained HTML file.
 set -euo pipefail
 
 VERSION="${VERSION:-1.0.0}"
@@ -74,6 +75,14 @@ build_linux() {
   echo "  -> ${DIST}/linux-${arch}/SuperDario"
 }
 
+build_web() {
+  # Pure Go: no cgo, no platform headers, works from any host. buildweb runs
+  # on the host, so clear any GOOS/GOARCH the caller exported for other
+  # targets (buildweb sets js/wasm for the child build itself).
+  echo "== web (single HTML) =="
+  env -u GOOS -u GOARCH -u CGO_ENABLED go run ./cmd/buildweb -version "${VERSION}"
+}
+
 build_darwin() {
   # Apple Silicon only — Intel Macs are not a supported target.
   echo "== darwin/arm64 =="
@@ -109,6 +118,7 @@ for t in "${targets[@]}"; do
     windows) build_windows ;;
     linux)   build_linux ;;
     darwin|mac|macos) build_darwin ;;
+    web)     build_web ;;
     all)     build_windows; [ "$(go env GOOS)" = darwin ] && build_darwin || build_linux ;;
     *)       echo "unknown target: $t" >&2; exit 1 ;;
   esac

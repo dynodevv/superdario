@@ -80,6 +80,13 @@ foreach ($t in $Targets) {
             Write-Host "against the macOS SDK. Run ./build.sh on a Mac, or use the GitHub"  -ForegroundColor Red
             Write-Host "Actions workflow in .github/workflows/build.yml."                    -ForegroundColor Red
         }
+        "web" {
+            Write-Host "`n== building web (single HTML) ==" -ForegroundColor Yellow
+            # The build tool runs on the host; buildweb targets js/wasm itself.
+            Remove-Item Env:GOOS, Env:GOARCH, Env:CGO_ENABLED -ErrorAction SilentlyContinue
+            go run ./cmd/buildweb -version $Version
+            Write-Host "  -> dist\web\SuperDario.html" -ForegroundColor Green
+        }
         default { Write-Host "unknown target: $t" -ForegroundColor Red }
     }
 }

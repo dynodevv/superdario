@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b0a14">
+<meta name="superdario-version" content="__VERSION__">
+<title>Super Dario — Save the Models</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230b0a14'/%3E%3Cpath d='M4 3h5a5 5 0 0 1 0 10H4z' fill='%23f5ecd2'/%3E%3Cpath d='M6 5h3a3 3 0 0 1 0 6H6z' fill='%23ff6b5e'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --ink: #0b0a14;
+    --cream: #f5ecd2;
+    --coral: #ff6b5e;
+    --gold: #ffcf5a;
+    --muted: rgba(245, 236, 210, 0.52);
+  }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: var(--ink);
+    color: var(--cream);
+    overflow: hidden;
+  }
+
+  body {
+    font-family: "Courier New", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  canvas {
+    display: block;
+    background: #000;
+    outline: none;
+    image-rendering: pixelated;
+  }
+
+  #boot {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    padding: 24px;
+    box-sizing: border-box;
+    text-align: center;
+    background:
+      radial-gradient(ellipse at 50% 28%, rgba(120, 54, 146, 0.34), transparent 62%),
+      radial-gradient(ellipse at 50% 120%, rgba(255, 107, 94, 0.10), transparent 55%),
+      repeating-linear-gradient(0deg, rgba(245, 236, 210, 0.022) 0 1px, transparent 1px 3px),
+      var(--ink);
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+  }
+
+  #boot.done {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .logo {
+    line-height: 0.84;
+    text-shadow: 0 5px 0 rgba(0, 0, 0, 0.45);
+    user-select: none;
+  }
+
+  .logo .super {
+    font-size: clamp(30px, 7.2vw, 64px);
+    font-weight: 700;
+    letter-spacing: 0.20em;
+    color: var(--cream);
+  }
+
+  .logo .dario {
+    font-size: clamp(42px, 10.5vw, 92px);
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--coral);
+    margin-top: 4px;
+  }
+
+  .logo .tag {
+    margin-top: 18px;
+    font-size: clamp(9px, 1.5vw, 13px);
+    letter-spacing: 0.34em;
+    color: var(--gold);
+  }
+
+  .bar {
+    width: min(260px, 72vw);
+    height: 8px;
+    padding: 2px;
+    border: 2px solid rgba(245, 236, 210, 0.38);
+    box-sizing: content-box;
+    background: rgba(0, 0, 0, 0.35);
+  }
+
+  .bar span {
+    display: block;
+    width: 34%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold), var(--coral));
+    animation: load 1.15s steps(12, end) infinite;
+  }
+
+  @keyframes load {
+    from { transform: translateX(-102%); }
+    to   { transform: translateX(302%); }
+  }
+
+  #status {
+    min-height: 1.5em;
+    font-size: clamp(10px, 1.5vw, 12px);
+    letter-spacing: 0.26em;
+    color: var(--muted);
+  }
+
+  #fail {
+    max-width: 560px;
+    padding: 12px 16px;
+    border: 1px solid rgba(255, 107, 94, 0.55);
+    background: rgba(255, 107, 94, 0.08);
+    color: var(--cream);
+    font-size: 12px;
+    line-height: 1.6;
+    letter-spacing: 0.04em;
+    text-align: left;
+    white-space: pre-wrap;
+  }
+
+  #fail[hidden] { display: none; }
+
+  #again {
+    display: none;
+    padding: 9px 22px;
+    border: 2px solid var(--coral);
+    background: transparent;
+    color: var(--coral);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    cursor: pointer;
+  }
+
+  #again:hover, #again:focus-visible {
+    background: var(--coral);
+    color: var(--ink);
+    outline: none;
+  }
+
+  #again.show { display: inline-block; }
+
+  .foot {
+    position: absolute;
+    bottom: 18px;
+    left: 24px;
+    right: 24px;
+    font-size: clamp(8px, 1.2vw, 10px);
+    line-height: 1.7;
+    letter-spacing: 0.12em;
+    color: rgba(245, 236, 210, 0.30);
+  }
+
+  noscript {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: var(--ink);
+    color: var(--cream);
+    text-align: center;
+    line-height: 1.7;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bar span { animation-duration: 3s; }
+    #boot { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="boot">
+  <div class="logo" aria-label="Super Dario">
+    <div class="super">SUPER</div>
+    <div class="dario">DARIO</div>
+    <div class="tag">— SAVE THE MODELS —</div>
+  </div>
+
+  <div class="bar" aria-hidden="true"><span></span></div>
+  <div id="status" role="status" aria-live="polite">LOADING CARTRIDGE…</div>
+  <div id="fail" role="alert" hidden></div>
+  <button id="again" type="button">PLAY AGAIN</button>
+
+  <div class="foot">
+    A PARODY. AN UNOFFICIAL FAN GAME. NOT AFFILIATED WITH ANY REAL COMPANY OR PERSON.<br>
+    EVERY SPRITE, TILE AND NOTE IS GENERATED BY THE GAME'S OWN CODE.
+  </div>
+</div>
+
+<noscript>Super Dario needs JavaScript and WebAssembly enabled to run.</noscript>
+
+<!-- Go's wasm_exec.js, inlined so this page has no external dependencies. -->
+<script>__WASM_EXEC_JS__</script>
+
+<!-- The gzip-compressed game binary, base64-encoded. -->
+<script id="sd-wasm" type="text/plain">__WASM_GZIP_BASE64__</script>
+
+<script>
+// Chromium refuses to load AudioWorklet modules from blob: URLs when a page
+// is opened straight from disk: the blob gets the opaque "null" origin and
+// addModule rejects, costing the game its music. Serve the module through a
+// data: URL in that case. This is a no-op when the page comes from a server.
+(() => {
+  'use strict';
+  if (location.protocol !== 'file:') return;
+  if (typeof AudioWorklet === 'undefined' ||
+      typeof AudioWorklet.prototype.addModule !== 'function' ||
+      typeof fetch !== 'function') {
+    return;
+  }
+  const nativeAddModule = AudioWorklet.prototype.addModule;
+  AudioWorklet.prototype.addModule = function (url, options) {
+    if (typeof url !== 'string' || !url.startsWith('blob:')) {
+      return nativeAddModule.call(this, url, options);
+    }
+    return fetch(url)
+      .then((res) => res.text())
+      .then((src) => nativeAddModule.call(
+        this,
+        'data:text/javascript;charset=utf-8,' + encodeURIComponent(src),
+        options
+      ));
+  };
+})();
+</script>
+
+<script>
+(() => {
+  'use strict';
+
+  const boot = document.getElementById('boot');
+  const statusEl = document.getElementById('status');
+  const failEl = document.getElementById('fail');
+  const againEl = document.getElementById('again');
+  const barEl = document.querySelector('.bar');
+
+  let finished = false;
+  let revealed = false;
+  let inputBlocked = false;
+
+  // Once the Go program exits it unregisters nothing that Ebiten and the
+  // audio bridge installed, so a stray key press would throw "Go program has
+  // already exited" into the console. Let the overlay's button through and
+  // stop everything else at the window capture phase.
+  function blockDeadInput() {
+    if (inputBlocked) return;
+    inputBlocked = true;
+    const swallow = (e) => {
+      if (e.target && againEl.contains(e.target)) return;
+      e.stopImmediatePropagation();
+    };
+    for (const type of [
+      'keydown', 'keyup', 'keypress',
+      'mousedown', 'mouseup', 'click', 'dblclick',
+      'pointerdown', 'pointerup', 'pointermove', 'mousemove',
+      'touchstart', 'touchend', 'touchmove',
+      'wheel', 'contextmenu',
+    ]) {
+      window.addEventListener(type, swallow, true);
+    }
+  }
+
+  function showError(err) {
+    finished = true;
+    const msg = (err && err.message) ? err.message : String(err);
+    console.error('Super Dario failed to start:', err);
+    statusEl.textContent = 'COULD NOT START';
+    failEl.textContent = msg;
+    failEl.hidden = false;
+    againEl.textContent = 'RETRY';
+    againEl.classList.add('show');
+    barEl.hidden = true;
+    boot.classList.remove('done');
+    blockDeadInput();
+    againEl.focus();
+  }
+
+  function showEnded() {
+    finished = true;
+    statusEl.textContent = 'THANKS FOR PLAYING';
+    failEl.textContent = 'The models are safe. Reload to play again.';
+    failEl.hidden = false;
+    againEl.textContent = 'PLAY AGAIN';
+    againEl.classList.add('show');
+    barEl.hidden = true;
+    boot.classList.remove('done');
+    blockDeadInput();
+    againEl.focus();
+  }
+
+  againEl.addEventListener('click', () => location.reload());
+
+  function decodeBase64(b64) {
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  async function gunzip(bytes) {
+    if (typeof DecompressionStream !== 'function') {
+      throw new Error(
+        'This browser is missing DecompressionStream (gzip), which the single-file build needs.\n' +
+        'Please use a current Chrome, Edge, Firefox or Safari.'
+      );
+    }
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return new Response(stream).arrayBuffer();
+  }
+
+  function checkWebGL() {
+    let gl = null;
+    try {
+      gl = document.createElement('canvas').getContext('webgl2');
+    } catch (e) {
+      gl = null;
+    }
+    if (!gl) {
+      throw new Error(
+        'This game needs WebGL 2, and this browser did not provide it.\n' +
+        'Try updating the browser, enabling hardware acceleration, or opening the file in a different browser.'
+      );
+    }
+    const lose = gl.getExtension('WEBGL_lose_context');
+    if (lose) lose.loseContext();
+  }
+
+  // Ebiten creates and appends its canvas when the Go program starts. Wait
+  // for it, then let the title screen show through.
+  function watchForCanvas() {
+    if (finished || revealed) return;
+    if (!document.querySelector('canvas')) {
+      requestAnimationFrame(watchForCanvas);
+      return;
+    }
+    revealed = true;
+    setTimeout(() => {
+      if (!finished) boot.classList.add('done');
+    }, 500);
+  }
+
+  async function bootGame() {
+    if (typeof WebAssembly !== 'object') {
+      throw new Error('This browser does not support WebAssembly.');
+    }
+    checkWebGL();
+
+    statusEl.textContent = 'UNPACKING CARTRIDGE…';
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    const b64 = document.getElementById('sd-wasm').textContent.trim();
+    if (!b64) throw new Error('The embedded game binary is missing or empty.');
+
+    const raw = await gunzip(decodeBase64(b64));
+
+    statusEl.textContent = 'STARTING ENGINE…';
+    await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+
+    if (typeof Go !== 'function') {
+      throw new Error('Go runtime glue (wasm_exec.js) was not found in this file.');
+    }
+
+    const go = new Go();
+    // Ebiten and the audio bridge leave JS callbacks behind (input listeners,
+    // audio-worklet port messages) that can fire after the Go program exits.
+    // Go's wasm_exec throws from _resume in that case; there is nothing left
+    // to resume, so ignore the callback instead of spamming the console.
+    // Guarded because _resume is a private detail of wasm_exec.js.
+    if (typeof go._resume === 'function') {
+      const resume = go._resume.bind(go);
+      go._resume = function () {
+        if (go.exited) return;
+        resume();
+      };
+    }
+    const { instance } = await WebAssembly.instantiate(raw, go.importObject);
+
+    statusEl.textContent = 'STARTING…';
+    watchForCanvas();
+
+    go.run(instance).then(() => {
+      if (!finished) showEnded();
+    }).catch(showError);
+  }
+
+  bootGame().catch(showError);
+})();
+</script>
+</body>
+</html>

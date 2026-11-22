@@ -25,7 +25,9 @@
 
 ---
 
-A 2D platformer written in Go with [Ebitengine](https://ebitengine.org).
+A 2D platformer written in Go with [Ebitengine](https://ebitengine.org). It runs
+natively on Windows, macOS and Linux, and in a desktop browser as a single
+self-contained HTML file via WebAssembly.
 
 Four (fictional) models — **Haiku**, **Sonnet**, **Opus** and **Fable** —
 have been copied, crated and shipped out to five rival labs calling themselves
@@ -85,16 +87,22 @@ fight *requires* them, so arriving without the Scroll is never a dead end.
 Three save slots. Progress is written after every stage, on every level select,
 and when you quit to the map.
 
-| OS | Path |
+| Platform | Location |
 |---|---|
 | Windows | `%APPDATA%\SuperDario\save.json` |
 | macOS | `~/Library/Application Support/SuperDario/save.json` |
 | Linux | `~/.config/SuperDario/save.json` |
+| Browser | localStorage key `superdario:SuperDario/save.json` |
 
-Writes are atomic (temp file + rename), so a crash mid-save cannot destroy an
-existing file. Unreadable JSON is moved aside to `save.json.corrupt` rather
-than silently overwritten. Control bindings are stored by *name*, so a save
-survives an engine update that renumbers the key constants.
+Native writes are atomic (temp file + rename), so a crash mid-save cannot
+destroy an existing file. Unreadable JSON is moved aside to `save.json.corrupt`
+rather than silently overwritten. Control bindings are stored by *name*, so a
+save survives an engine update that renumbers the key constants.
+
+The WebAssembly build keeps the same JSON document in browser localStorage.
+The Options screen shows the exact location. Browser saves are per-browser and
+per-profile; clearing site data (or the browser's storage for `file://` pages)
+erases them. They never leave the machine.
 
 ---
 
@@ -161,11 +169,34 @@ sudo apt install libgl1-mesa-dev xorg-dev libasound2-dev   # Debian/Ubuntu
 `build.sh` checks for those headers up front and prints the right install
 command for your distro if any are missing.
 
+### Web (one HTML file)
+
+Pure Go — no cgo and no platform libraries. The build inlines Go's
+`wasm_exec.js` runtime and the gzip-compressed wasm binary into the page, so the
+result is a single HTML file with no sidecar assets, no server and no network
+access.
+
+```bash
+make web                          # -> dist/web/SuperDario.html
+./build.sh web                    # same thing
+.\build.ps1 -Targets web          # from Windows
+```
+
+Open `dist/web/SuperDario.html` directly in a desktop browser (double-click or
+File → Open). It needs WebGL 2 and `DecompressionStream`; current Chrome, Edge,
+Firefox and Safari have both. Audio starts after the first key press or click
+because browsers block autoplay, and gamepads work through the Gamepad API.
+Saves go to localStorage rather than disk, so they survive a reload but not
+clearing site data. Some browsers restrict storage for `file://` pages; if
+saves do not stick, serve the file over HTTP (for example
+`python3 -m http.server` in `dist/web`) and they will.
+
 ### All platforms at once
 
-`.github/workflows/build.yml` builds Windows, Linux and macOS (arm64) on every
-push and uploads them as artifacts. That is the easiest way to get a Mac build
-without owning a Mac.
+`.github/workflows/build.yml` builds Windows, Linux, macOS (arm64) and the
+single-file web build on every push and uploads them as artifacts. That is the
+easiest way to get a Mac build without owning a Mac, or a web build without
+running the command locally.
 
 The test job runs under `xvfb`: importing Ebitengine runs an `init()` that
 opens the display, so even tests that never draw a frame need an X server on a
@@ -184,6 +215,8 @@ bundles have gone stale.
 -save-path       print the save file location and exit
 ```
 
+These flags are for native builds; the browser build takes no arguments.
+
 Music and sound default to 55% / 70% on a fresh install and are adjustable in
 Options. If you ever run the engine uncapped, mute it — thousands of frames per
 second means thousands of overlapping sounds per second.
@@ -194,20 +227,24 @@ second means thousands of overlapping sounds per second.
 
 Apart from the generated icon bundles, there are no asset files. Every sprite,
 tile, backdrop, sound effect and note of music is produced by code when the
-game starts, which is why it ships as one self-contained binary per platform.
+game starts, which is why it ships as one self-contained binary per platform —
+or one self-contained HTML file in a browser.
 
 ```
 cmd/superdario     the game
+cmd/buildweb       build tool: package the game as one self-contained HTML
 cmd/genicon        build tool: render the icon and the Windows resource
 cmd/artdump        dev tool: dump the generated sprite sheets to PNG
 cmd/shots          dev tool: drive the game through its screens and capture PNGs
+web/index.html     the web loader and loading screen, filled in by buildweb
 
 internal/core      screen size, tile size, physics constants
 internal/gfx       palette, ASCII-art sprite decoder, 5x7 bitmap font,
                    procedural tilesets, parallax backdrops, particles, bosses,
                    the app icon, and the drawn Xbox controller
 internal/sfx       chiptune synth, tracker sequencer, the soundtrack, SFX
-internal/save      slots, settings, bindings, atomic JSON persistence
+internal/save      slots, settings, bindings, atomic JSON persistence;
+                   localStorage on the WebAssembly build
 internal/world     tiles, chunk-assembled levels, physics, enemies, bosses
 internal/game      scene stack, input bindings, HUD, menus, cutscenes
 ```

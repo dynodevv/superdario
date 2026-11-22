@@ -78,7 +78,18 @@ func main() {
 	ebiten.SetTPS(core.TPS)
 	ebiten.SetVsyncEnabled(*vsync)
 	ebiten.SetScreenClearedEveryFrame(true)
-	if *fullscreen || g.Save.Settings.Fullscreen {
+
+	web := runtime.GOOS == "js"
+	if web {
+		// In a browser the canvas fills the window, so the game is usually
+		// scaled by a fractional amount. Nearest-neighbour keeps the pixels
+		// crisp instead of blurring them through the box filter.
+		ebiten.SetScreenFilterEnabled(false)
+	}
+	// Browsers only grant fullscreen from a user gesture, so applying a saved
+	// fullscreen setting at boot cannot work there. The Options screen can
+	// still toggle it during play.
+	if (*fullscreen || g.Save.Settings.Fullscreen) && !web {
 		ebiten.SetFullscreen(true)
 	}
 

@@ -1,4 +1,5 @@
-// Package save persists progress and settings to the user's config directory.
+// Package save persists progress and settings. Native builds use the user's
+// config directory; the WebAssembly build uses browser localStorage.
 // The layout is deliberately boring JSON so a save survives game updates.
 package save
 
@@ -6,8 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
+	"io/fs"
 	"sync"
 	"time"
 )
@@ -92,36 +92,21 @@ type File struct {
 	lastErr error      `json:"-"`
 }
 
-// Dir returns the directory the save lives in, creating it if needed.
+// Dir returns the directory the save lives in. Native builds create it if
+// needed; the WebAssembly build returns a display-only URI.
 func Dir() (string, error) {
-	base, err := os.UserConfigDir()
-	if err != nil {
-		// Fall back to the executable's folder — better a portable save than
-		// no save at all.
-		exe, eerr := os.Executable()
-		if eerr != nil {
-			return "", err
-		}
-		base = filepath.Dir(exe)
-	}
-	dir := filepath.Join(base, "SuperDario")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", err
-	}
-	return dir, nil
+	return saveDir()
 }
 
-// Path is the full save-file path.
+// Path is the full save-file location. On the WebAssembly build it is a
+// localStorage URI rather than an operating-system path.
 func Path() (string, error) {
-	dir, err := Dir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "save.json"), nil
+	return saveFilePath()
 }
 
-// Load reads the save file from the user's config directory, returning a
-// usable default document if none exists or if the existing one is unreadable.
+// Load reads the save file from the platform's storage (the config directory
+// natively, localStorage in the browser), returning a usable default document
+// if none exists or if the existing one is unreadable.
 func Load() *File {
 	p, err := Path()
 	if err != nil {
@@ -134,9 +119,9 @@ func Load() *File {
 func LoadPath(p string) *File {
 	f := &File{Version: FileVersion, Settings: DefaultSettings(), path: p}
 
-	data, err := os.ReadFile(p)
+	data, err := readSaveFile(p)
 	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
+		if !errors.Is(err, fs.ErrNotExist) {
 			f.lastErr = fmt.Errorf("reading save: %w", err)
 		}
 		return f
@@ -144,7 +129,7 @@ func LoadPath(p string) *File {
 	var in File
 	if err := json.Unmarshal(data, &in); err != nil {
 		// Keep the corrupt file around rather than silently overwriting it.
-		_ = os.Rename(p, p+".corrupt")
+		_ = renameSaveFile(p, p+".corrupt")
 		f.lastErr = fmt.Errorf("save file was unreadable and has been set aside: %w", err)
 		return f
 	}
@@ -196,8 +181,9 @@ func (f *File) migrate() {
 // non-fatal — the game keeps running and the UI reports them.
 func (f *File) Err() error { return f.lastErr }
 
-// Save writes the document atomically: a temp file in the same directory,
-// then a rename, so an interrupted write cannot destroy an existing save.
+// Save writes the document. Native builds write a temp file and rename it so
+// an interrupted write cannot destroy an existing save; the WebAssembly build
+// writes one localStorage value.
 func (f *File) Save() error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -213,27 +199,7 @@ func (f *File) Save() error {
 	if err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(f.path), "save-*.tmp")
-	if err != nil {
-		return err
-	}
-	tmpName := tmp.Name()
-	defer os.Remove(tmpName) // no-op once the rename succeeds
-
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Sync(); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	// Windows will not rename onto an existing file, so clear the way first.
-	_ = os.Remove(f.path)
-	if err := os.Rename(tmpName, f.path); err != nil {
+	if err := writeSaveFile(f.path, data); err != nil {
 		return err
 	}
 	f.lastErr = nil

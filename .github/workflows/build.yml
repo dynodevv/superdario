@@ -48,6 +48,32 @@ jobs:
             exit 1
           fi
 
+  web:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      # The localStorage backend and the js-specific main path only compile
+      # under GOOS=js, so vet them in that configuration as well.
+      - name: Vet the js/wasm build
+        run: GOOS=js GOARCH=wasm go vet ./cmd/superdario ./internal/save
+
+      - name: Build single-file web game
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          [ "$GITHUB_REF_TYPE" = tag ] || VERSION="dev-${GITHUB_SHA::7}"
+          go run ./cmd/buildweb -version "$VERSION"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: superdario-web
+          path: dist/web/SuperDario.html
+          if-no-files-found: error
+
   build:
     needs: test
     strategy:
